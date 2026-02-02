@@ -16,3 +16,33 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# OCS Database Connection (Optional/Resilient)
+OCS_DATABASE_URL = os.getenv("OCS_DATABASE_URL")
+engine_ocs = None
+SessionOCS = None
+
+if OCS_DATABASE_URL:
+    try:
+        engine_ocs = create_engine(OCS_DATABASE_URL, pool_pre_ping=True)
+        SessionOCS = sessionmaker(autocommit=False, autoflush=False, bind=engine_ocs)
+    except Exception as e:
+        print(f"WARNING: Failed to initialize OCS Engine: {e}")
+        engine_ocs = None
+else:
+    print("WARNING: OCS_DATABASE_URL not set. OCS features will be disabled.")
+
+def get_ocs_db():
+    """
+    Dependency that yields an OCS session or None if unavailable.
+    Consumers must check if db is None.
+    """
+    if SessionOCS is None:
+        yield None
+        return
+
+    db = SessionOCS()
+    try:
+        yield db
+    finally:
+        db.close()

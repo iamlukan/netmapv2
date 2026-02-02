@@ -9,6 +9,7 @@ class NetworkNode(Base):
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)  # Máquina, Switch, Ramal
     ip_address = Column(String, nullable=True)
+    floor_id = Column(Integer, nullable=False, default=1)
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=True)
 
     def to_geojson(self):
@@ -33,6 +34,7 @@ class NetworkNode(Base):
                 "id": self.id,
                 "name": self.name,
                 "type": self.type,
-                "ip_address": self.ip_address
+                "ip_address": self.ip_address,
+                "floor_id": self.floor_id
             }
         }

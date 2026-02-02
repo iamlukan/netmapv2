@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Netmap v2</title>
-    
+    <title>Netmap v2 - Indoor</title>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -22,55 +23,206 @@
                             overlay0: '#6c7086',
                             blue: '#89b4fa',
                             lavender: '#b4befe',
+                            red: '#f38ba8',
+                            green: '#a6e3a1',
                         }
                     }
                 }
             }
         }
     </script>
-    
+
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
     <style>
         body {
-            background-color: #1e1e2e; /* Catppuccin Base */
-            color: #cdd6f4; /* Catppuccin Text */
+            background-color: #1e1e2e;
+            color: #cdd6f4;
         }
+
         #map {
-            height: calc(100vh - 4rem); /* Full height minus header */
+            height: calc(100vh - 4rem);
             width: 100%;
             z-index: 10;
+            background: #11111b;
+        }
+
+        /* Custom Popup Styles for Catppuccin */
+        .leaflet-popup-content-wrapper,
+        .leaflet-popup-tip {
+            background: #181825;
+            /* Mantle */
+            color: #cdd6f4;
+            border: 1px solid #313244;
+            /* Surface0 */
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 0.5rem;
         }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+
+<body class="flex flex-col h-screen overflow-hidden font-sans">
 
     <!-- Header -->
-    <header class="h-16 bg-catppuccin-mantle border-b border-catppuccin-surface0 flex items-center px-6">
-        <h1 class="text-2xl font-bold text-catppuccin-lavender">Netmap v2</h1>
+    <header
+        class="h-16 bg-catppuccin-mantle border-b border-catppuccin-surface0 flex items-center justify-between px-6">
+        <h1 class="text-2xl font-bold text-catppuccin-lavender">Netmap v2 <span
+                class="text-sm text-catppuccin-overlay0 font-normal ml-2">Indoor Mapping</span></h1>
+        <div id="connection-status" class="flex gap-2 text-xs">
+            <span id="status-local" class="px-2 py-1 rounded bg-catppuccin-surface0 text-catppuccin-overlay0">Local:
+                Connecting...</span>
+            <span id="status-ocs" class="px-2 py-1 rounded bg-catppuccin-surface0 text-catppuccin-overlay0">OCS:
+                Connecting...</span>
+        </div>
     </header>
 
     <!-- Map Container -->
     <main class="flex-grow relative">
-        <div id="map" class="bg-catppuccin-crust"></div>
+        <div id="map"></div>
     </main>
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
     <script>
-        // Initialize Map
-        const map = L.map('map').setView([-23.5505, -46.6333], 13); // Default to Sao Paulo (placeholder)
+        // --- Configuration ---
+        const IMAGE_WIDTH = 2000;  // Adjust based on your floor plan aspect ratio
+        const IMAGE_HEIGHT = 1500;
+        const bounds = [[0, 0], [IMAGE_HEIGHT, IMAGE_WIDTH]];
 
-        // Dark Matter Tile Layer (fits dark theme)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 20
-        }).addTo(map);
+        // --- Map Initialization (CRS.Simple) ---
+        const map = L.map('map', {
+            crs: L.CRS.Simple,
+            minZoom: -2,
+            maxZoom: 2,
+            zoomSnap: 0.5
+        });
 
-        console.log("Netmap Frontend Initialized");
+        // --- Floor Layers ---
+        // Placeholder image URL
+        const placeholderImg = 'https://placehold.co/2000x1500/181825/cdd6f4?text=Floor+';
+
+        // Define layers for 10 floors
+        const floorLayers = {};
+        for (let i = 1; i <= 10; i++) {
+            // In production, use `/static/assets/floors/floor_${i}.jpg`
+            // Fallback to placeholder for demo if file doesn't exist (handled by browser error, but here we just link placeholder)
+            // Ideally, you'd check file existence or just put the real files. 
+            // For now, let's assume the user will drop files later. We can use a trick or just point to expected path.
+            // Using placeholder logic for robustness in this prompt:
+            const url = `/static/assets/floors/floor_${i}.jpg`;
+
+            floorLayers[`Floor ${i}`] = L.imageOverlay(url, bounds, {
+                errorOverlayUrl: placeholderImg + i // Leaflet fallback!
+            });
+        }
+
+        // Add 1st floor by default
+        floorLayers["Floor 1"].addTo(map);
+        map.fitBounds(bounds);
+
+        // Layer Control (Radio Buttons for Floors)
+        L.control.layers(floorLayers, {}, { collapsed: false, position: 'topright' }).addTo(map);
+
+        // --- Marker Logic ---
+        const markersLayer = L.layerGroup().addTo(map);
+        let allNodes = [];
+        let currentFloor = 1;
+
+        async function fetchNodes() {
+            try {
+                const response = await fetch('/api/nodes');
+                const data = await response.json();
+                allNodes = data.features;
+                updateMarkers();
+            } catch (error) {
+                console.error("Error fetching nodes:", error);
+            }
+        }
+
+        function updateMarkers() {
+            markersLayer.clearLayers();
+
+            const floorNodes = allNodes.filter(f => f.properties.floor_id === currentFloor);
+
+            floorNodes.forEach(feature => {
+                const [y, x] = feature.geometry.coordinates; // In CRS.Simple, [y, x] is standard or [x, y], typically Leaflet uses [lat(y), lng(x)]
+                // Warning: GeoJSON is [x, y]. Leaflet map entry is [lat, lng] -> [y, x].
+
+                const marker = L.circleMarker([x, y], {
+                    radius: 6,
+                    fillColor: "#a6e3a1", // Green
+                    color: "#11111b",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+
+                const props = feature.properties;
+                marker.bindPopup(`
+                    <div class="font-sans">
+                        <h3 class="font-bold text-catppuccin-lavender">${props.name}</h3>
+                        <p class="text-xs text-catppuccin-text">IP: ${props.ip_address || 'N/A'}</p>
+                        <p class="text-xs text-catppuccin-overlay0">${props.type}</p>
+                    </div>
+                `);
+
+                markersLayer.addLayer(marker);
+            });
+        }
+
+        // Event: Detect Floor Change
+        map.on('baselayerchange', function (e) {
+            // Extract floor number from name "Floor X"
+            const match = e.name.match(/Floor (\d+)/);
+            if (match) {
+                currentFloor = parseInt(match[1]);
+                console.log("Switched to Floor:", currentFloor);
+                updateMarkers();
+            }
+        });
+
+        // Debug: Click to get coordinates
+        map.on('click', function (e) {
+            console.log(`Clicked at: [${e.latlng.lat}, ${e.latlng.lng}]`);
+            // Helper to copy-paste into DB
+            L.popup()
+                .setLatLng(e.latlng)
+                .setContent(`Pos: [${e.latlng.lng.toFixed(1)}, ${e.latlng.lat.toFixed(1)}]`)
+                .openOn(map);
+        });
+
+        // --- Diagnostics & Init ---
+        async function checkConnection() {
+            try {
+                const res = await fetch('/api/test-db');
+                const status = await res.json();
+
+                const localEl = document.getElementById('status-local');
+                localEl.textContent = `Local: ${status.local}`;
+                localEl.className = `px-2 py-1 rounded ${status.local.startsWith('OK') ? 'bg-catppuccin-green text-catppuccin-crust' : 'bg-catppuccin-red text-catppuccin-crust'}`;
+
+                const ocsEl = document.getElementById('status-ocs');
+                ocsEl.textContent = `OCS: ${status.ocs}`;
+                ocsEl.className = `px-2 py-1 rounded ${status.ocs.startsWith('OK') ? 'bg-catppuccin-green text-catppuccin-crust' : (status.ocs.includes('DESATIVADO') ? 'bg-catppuccin-surface1' : 'bg-catppuccin-red text-catppuccin-crust')}`;
+
+            } catch (e) {
+                console.error("Diagnostics failed", e);
+            }
+        }
+
+        // Init
+        fetchNodes();
+        checkConnection();
+        // Refresh diagnostics every 30s
+        setInterval(checkConnection, 30000);
+
     </script>
 </body>
+
 </html>
