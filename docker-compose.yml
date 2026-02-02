@@ -27,18 +27,16 @@ services:
     restart: unless-stopped
 
   netmap-tunnel:
-    image: cstrom/ssh-tunnel
+    image: alpine:latest
     container_name: netmap-tunnel
-    environment:
-      - SSH_HOST=tunnel_host_or_ip_here
-      - SSH_USER=admband
-      - REMOTE_HOST=10.20.20.240
-      - REMOTE_PORT=5432
-      - LOCAL_PORT=5432
+    command: sh -c "apk add --no-cache openssh-client && ssh -o StrictHostKeyChecking=no -N -L 0.0.0.0:5432:10.20.20.240:5432 ${SSH_USER}@${SSH_HOST}"
     ports:
       - "5433:5432"
     volumes:
-      - ${USERPROFILE}/.ssh/id_rsa:/root/ssh/id_rsa:ro
+      - ${USERPROFILE}/.ssh/id_rsa:/root/.ssh/id_rsa:ro
+    environment:
+      - SSH_USER=${SSH_USER:-admband}
+      - SSH_HOST=${SSH_HOST}
     restart: unless-stopped
 
 volumes:

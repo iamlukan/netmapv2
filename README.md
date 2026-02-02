@@ -13,9 +13,11 @@ Infrastructure and Network Mapping Application.
 
 1.  Clone the repository.
 2.  Ensure Docker and Docker Compose are installed.
-3.  **SSH Tunnel Config**:
-    - Ensure your SSH private key is available at `~/.ssh/id_rsa` (Windows: `%USERPROFILE%\.ssh\id_rsa`).
-    - Update `docker-compose.yml` `SSH_HOST` with the jumpbox address if needed.
+3.  **Configuration**:
+    - Create a `.env` file based on `.env.example`.
+    - Set `SSH_HOST` to your SSH Gateway IP.
+    - Set `SSH_USER` (Default: `admband`).
+    - Ensure your SSH private key is available at `%USERPROFILE%\.ssh\id_rsa`.
 4.  Run the application:
 
     ```bash
@@ -37,11 +39,13 @@ Infrastructure and Network Mapping Application.
 
 ## Environment Variables
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `DATABASE_URL` | Local DB Connection String | `postgresql://netmap:netmap_password@netmap-db:5432/netmap` |
-| `SSH_HOST` | Tunnel Host Address | *Required* |
-| `SSH_USER` | Tunnel User | `admband` |
+Check `.env.example` for reference.
+
+## Troubleshooting
+
+### SSH Tunnel Issues
+- Ensure `id_rsa` has correct permissions (though on Windows Docker mounts this can be tricky, the Alpine container usually handles it if mounted read-only).
+- Check logs: `docker logs netmap-tunnel`.
 
 ## Theme
 Uses Catppuccin Mocha palette.
