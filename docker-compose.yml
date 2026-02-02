@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  netmap-app:
+    build: .
+    container_name: netmap-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./static:/app/static
+    environment:
+      - DATABASE_URL=postgresql://netmap:netmap_password@netmap-db:5432/netmap
+    depends_on:
+      - netmap-db
+    restart: unless-stopped
+
+  netmap-db:
+    image: postgis/postgis:16-3.4
+    container_name: netmap-db
+    environment:
+      - POSTGRES_USER=netmap
+      - POSTGRES_PASSWORD=netmap_password
+      - POSTGRES_DB=netmap
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  netmap-tunnel:
+    image: alpine:latest
+    container_name: netmap-tunnel
+    command: sh -c "echo 'Tunnel Placeholder - SSH key and config required' && sleep infinity"
+    restart: unless-stopped
+    # Future volume mounts for SSH keys:
+    # volumes:
+    #   - ./scripts/ssh:/root/.ssh
+
+volumes:
+  postgres_data:
