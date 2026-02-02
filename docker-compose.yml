@@ -29,13 +29,19 @@ services:
     restart: unless-stopped
 
   netmap-tunnel:
-    image: alpine:latest
+    image: cstrom/ssh-tunnel
     container_name: netmap-tunnel
-    command: sh -c "echo 'Tunnel Placeholder - SSH key and config required' && sleep infinity"
+    environment:
+      - SSH_HOST=tunnel_host_or_ip_here
+      - SSH_USER=admband
+      - REMOTE_HOST=10.20.20.240
+      - REMOTE_PORT=5432
+      - LOCAL_PORT=5432
+    ports:
+      - "5433:5432"
+    volumes:
+      - ${USERPROFILE}/.ssh/id_rsa:/root/ssh/id_rsa:ro
     restart: unless-stopped
-    # Future volume mounts for SSH keys:
-    # volumes:
-    #   - ./scripts/ssh:/root/.ssh
 
 volumes:
   postgres_data:

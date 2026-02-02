@@ -6,13 +6,14 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
 COPY pyproject.toml .
 
-# Install dependencies into a temporary directory
-# We can use pip directly to install from pyproject.toml as long as it adheres to standards or we export it
-# Since we don't have uv in the image by default, let's just install standard pip tools
-RUN pip install --upgrade pip && \
-    pip install .
+# Use uv to install dependencies into a virtual environment or system
+# Here we install into the system site-packages of the builder image
+RUN uv pip install --system .
 
 # Final stage
 FROM python:3.11-slim
@@ -21,6 +22,11 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+
+# Install runtime system dependencies for GeoAlchemy/PostGIS
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libpq5 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages

@@ -12,6 +12,10 @@ if not os.path.exists(static_dir):
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+from app.api import nodes
+
+app.include_router(nodes.router, prefix="/api")
+
 @app.get("/")
 async def read_root():
     return FileResponse(os.path.join(static_dir, "index.html"))
