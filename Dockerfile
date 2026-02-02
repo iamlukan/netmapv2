@@ -9,7 +9,7 @@ ENV PYTHONUNBUFFERED=1
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
 
 # Use uv to install dependencies into a virtual environment or system
 # Here we install into the system site-packages of the builder image
@@ -39,4 +39,5 @@ COPY . .
 EXPOSE 8000
 
 # Run commands
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+ENV PYTHONPATH=/app
+CMD ["sh", "-c", "python scripts/wait_for_db.py && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
