@@ -9,6 +9,7 @@ class NetworkNode(Base):
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)  # Máquina, Switch, Ramal
     ip_address = Column(String, nullable=True)
+    point_number = Column(String, nullable=True)
     floor_id = Column(Integer, ForeignKey('floors.id'), nullable=False, default=1)
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=True)
 
@@ -35,6 +36,7 @@ class NetworkNode(Base):
                 "name": self.name,
                 "type": self.type,
                 "ip_address": self.ip_address,
+                "point_number": self.point_number,
                 "floor_id": self.floor_id
             }
         }

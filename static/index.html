@@ -25,6 +25,7 @@
                             lavender: '#b4befe',
                             red: '#f38ba8',
                             green: '#a6e3a1',
+                            yellow: '#f9e2af'
                         }
                     }
                 }
@@ -59,6 +60,10 @@
         .leaflet-container {
             background: #11111b;
         }
+
+        .cursor-crosshair {
+            cursor: crosshair !important;
+        }
     </style>
 </head>
 
@@ -70,8 +75,11 @@
         <div class="flex items-center gap-4">
             <h1 class="text-2xl font-bold text-catppuccin-lavender">Netmap v2</h1>
             <button onclick="toggleSidebar()"
-                class="text-sm bg-catppuccin-surface0 px-3 py-1 rounded hover:bg-catppuccin-surface1">Manage
-                Floors</button>
+                class="text-sm bg-catppuccin-surface0 px-3 py-1 rounded hover:bg-catppuccin-surface1">Gerenciar
+                Background</button>
+            <button id="btn-insert" onclick="toggleInsertMode()"
+                class="text-sm bg-catppuccin-blue text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inserir
+                Item</button>
         </div>
         <div id="connection-status" class="flex gap-2 text-xs">
             <span id="status-local" class="px-2 py-1 rounded bg-catppuccin-surface0 text-catppuccin-overlay0">Local:
@@ -82,20 +90,17 @@
     </header>
 
     <div class="flex flex-grow relative">
-        <!-- Sidebar (Hidden by default) -->
+        <!-- Sidebar -->
         <aside id="sidebar"
-            class="w-64 bg-catppuccin-mantle border-r border-catppuccin-surface0 hidden flex flex-col p-4 z-20 absolute h-full transition-transform">
-            <h2 class="text-lg font-bold mb-4">Floor Manager</h2>
-            <div id="floor-list" class="space-y-2 mb-4 overflow-y-auto flex-grow">
-                <!-- Floors injected here -->
-            </div>
-
+            class="w-80 bg-catppuccin-mantle border-r border-catppuccin-surface0 hidden flex flex-col p-4 z-20 absolute h-full transition-transform">
+            <h2 class="text-lg font-bold mb-4">Gerenciar Andares</h2>
+            <div id="floor-list" class="space-y-2 mb-4 overflow-y-auto flex-grow"></div>
             <div class="border-t border-catppuccin-surface0 pt-4">
-                <h3 class="text-sm font-bold mb-2">Upload New Floor</h3>
+                <h3 class="text-sm font-bold mb-2">Upload Novo Andar</h3>
                 <form id="upload-form" class="space-y-2 text-xs">
-                    <input type="text" id="new-floor-name" placeholder="Name (e.g. 1st Floor)"
+                    <input type="text" id="new-floor-name" placeholder="Nome (ex: Térreo)"
                         class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0 text-catppuccin-text">
-                    <input type="number" id="new-floor-level" placeholder="Order (e.g. 1)"
+                    <input type="number" id="new-floor-level" placeholder="Ordem (ex: 1)"
                         class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0 text-catppuccin-text">
                     <input type="file" id="new-floor-file" accept="image/*" class="w-full text-catppuccin-overlay0">
                     <button type="submit"
@@ -103,6 +108,49 @@
                 </form>
             </div>
         </aside>
+
+        <!-- Hidden input for file replacement -->
+        <input type="file" id="replace-file-input" accept="image/*" class="hidden">
+
+        <!-- Insert Modal -->
+        <div id="insert-modal"
+            class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-catppuccin-mantle border border-catppuccin-surface0 p-6 rounded shadow-xl z-30 w-80">
+            <h3 class="text-lg font-bold mb-4 text-catppuccin-lavender">Inserir Item</h3>
+            <form id="insert-form" class="space-y-3">
+                <input type="hidden" id="insert-x">
+                <input type="hidden" id="insert-y">
+
+                <div>
+                    <label class="block text-xs text-catppuccin-overlay0 mb-1">Tipo</label>
+                    <select id="insert-type"
+                        class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0"
+                        onchange="handleTypeChange()">
+                        <option value="Computador">Computador</option>
+                        <option value="Ponto">Ponto de Rede (Vazio)</option>
+                        <option value="Ramal">Ramal</option>
+                    </select>
+                </div>
+
+                <div id="field-name">
+                    <label class="block text-xs text-catppuccin-overlay0 mb-1">Nome</label>
+                    <input type="text" id="insert-name" placeholder="Ex: RJ-PC01"
+                        class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0">
+                </div>
+
+                <div id="field-point">
+                    <label class="block text-xs text-catppuccin-overlay0 mb-1">Ponto de Rede</label>
+                    <input type="text" id="insert-point" placeholder="Ex: 160"
+                        class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeInsertModal()"
+                        class="px-3 py-1 bg-catppuccin-surface0 rounded hover:bg-catppuccin-surface1">Cancelar</button>
+                    <button type="submit"
+                        class="px-3 py-1 bg-catppuccin-blue text-catppuccin-crust font-bold rounded hover:opacity-90">Salvar</button>
+                </div>
+            </form>
+        </div>
 
         <!-- Map -->
         <main class="flex-grow relative w-full">
@@ -115,24 +163,19 @@
 
     <script>
         // Init Map
-        const map = L.map('map', {
-            crs: L.CRS.Simple,
-            minZoom: -3,
-            maxZoom: 2,
-            zoomSnap: 0.5
-        });
-
-        const floorLayers = {};
+        const map = L.map('map', { crs: L.CRS.Simple, minZoom: -3, maxZoom: 2, zoomSnap: 0.5 });
         const layerControl = L.control.layers(null, null, { collapsed: false, position: 'topright' }).addTo(map);
         let currentFloorId = null;
         let floorsData = [];
         let markersLayer = L.layerGroup().addTo(map);
         let allNodes = [];
+        let floorToReplace = null;
+        let isInsertMode = false;
+        let insertMarker = null;
 
         async function init() {
             await fetchFloors();
             await fetchNodes();
-            // Start connection check loop
             checkConnection();
             setInterval(checkConnection, 30000);
         }
@@ -142,141 +185,203 @@
                 const res = await fetch('/api/floors');
                 floorsData = await res.json();
 
-                // Clear existing
-                // Warning: removing layers from control is tricky in Leaflet without rebuild
-                // For MVP, we presume page reload on big changes, but we try to rebuild control
                 layerControl.remove();
                 const newControl = L.control.layers(null, null, { collapsed: false, position: 'topright' }).addTo(map);
 
                 const sidebarList = document.getElementById('floor-list');
                 sidebarList.innerHTML = '';
 
-                // If no floors, show a default msg or empty map
-                if (floorsData.length === 0) {
-                    L.popup().setLatLng([0, 0]).setContent("No floors defined. Upload one in Manage Floors.").openOn(map);
-                    return;
-                }
-
                 floorsData.forEach((floor, index) => {
-                    // Create Image Overlay
                     const bounds = [[0, 0], [floor.height, floor.width]];
                     const layer = L.imageOverlay(floor.image_path, bounds);
-
-                    floorLayers[floor.id] = layer;
                     newControl.addBaseLayer(layer, floor.name);
 
-                    // Sidebar Item
                     const item = document.createElement('div');
-                    item.className = "flex justify-between items-center bg-catppuccin-surface0 p-2 rounded";
-                    item.innerHTML = `<span>${floor.name}</span> <span class="text-xs text-catppuccin-overlay0">Lvl ${floor.level_order}</span>`;
+                    item.className = "flex justify-between items-center bg-catppuccin-surface0 p-2 rounded text-sm";
+                    item.innerHTML = `
+                        <div>
+                            <div class='font-bold'>${floor.name}</div>
+                            <div class='text-xs text-catppuccin-overlay0'>Lvl ${floor.level_order}</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="triggerReplace(${floor.id})" class="hover:text-catppuccin-blue" title="Substituir">♻️</button>
+                            <button onclick="deleteFloor(${floor.id})" class="hover:text-catppuccin-red" title="Excluir">🗑️</button>
+                        </div>
+                    `;
                     sidebarList.appendChild(item);
 
-                    // Set default if first
-                    if (index === 0) {
+                    if (index === 0 && !currentFloorId) {
                         layer.addTo(map);
                         map.fitBounds(bounds);
                         currentFloorId = floor.id;
                     }
                 });
-
-            } catch (e) {
-                console.error("Error fetching floors:", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         async function fetchNodes() {
-            const res = await fetch('/api/nodes');
-            const data = await res.json();
-            allNodes = data.features;
-            updateMarkers();
+            try {
+                const res = await fetch('/api/nodes');
+                const data = await res.json();
+                allNodes = data.features;
+                updateMarkers();
+            } catch (e) { }
         }
 
         function updateMarkers() {
             if (!currentFloorId) return;
-
             markersLayer.clearLayers();
             const visibleNodes = allNodes.filter(n => n.properties.floor_id === currentFloorId);
 
             visibleNodes.forEach(f => {
-                const [y, x] = f.geometry.coordinates; // GeoJSON [x,y] -> Leaflet [lat(y), lng(x)]
+                const [y, x] = f.geometry.coordinates;
+                let color = "#a6e3a1"; // Green (PC)
+                if (f.properties.type === 'Ponto') color = "#f9e2af"; // Yellow (Empty)
+                if (f.properties.type === 'Ramal') color = "#f38ba8"; // Red (Phone)
 
-                const marker = L.circleMarker([x, y], {
-                    radius: 6,
-                    fillColor: "#a6e3a1",
-                    color: "#11111b",
-                    weight: 1,
-                    fillOpacity: 0.8
-                }).bindPopup(`
-                    <b>${f.properties.name}</b><br>
-                    IP: ${f.properties.ip_address}<br>
-                    Type: ${f.properties.type}
-                `);
+                const popupContent = `
+                    <div class="font-sans">
+                        <h3 class="font-bold text-catppuccin-lavender">${f.properties.name}</h3>
+                        ${f.properties.point_number ? `<p class="text-xs text-catppuccin-blue">Ponto: ${f.properties.point_number}</p>` : ''}
+                        ${f.properties.ip_address ? `<p class="text-xs text-catppuccin-text">${f.properties.ip_address}</p>` : ''}
+                        <p class="text-xs text-catppuccin-overlay0">${f.properties.type}</p>
+                    </div>
+                `;
 
-                markersLayer.addLayer(marker);
+                L.circleMarker([x, y], { radius: 6, fillColor: color, color: "#11111b", weight: 1, fillOpacity: 0.8 })
+                    .bindPopup(popupContent)
+                    .addTo(markersLayer);
             });
         }
 
-        // Map Events
-        map.on('baselayerchange', function (e) {
-            // Find floor ID by name (or layer ref)
-            const floor = floorsData.find(f => f.name === e.name);
-            if (floor) {
-                currentFloorId = floor.id;
-                // Update bounds
-                const bounds = [[0, 0], [floor.height, floor.width]];
-                map.setMaxBounds(bounds); // Restrict to new floor size
-                // Optionally fit bounds? map.fitBounds(bounds); 
-                updateMarkers();
-            }
-        });
+        // --- Insert Mode Logic ---
+        function toggleInsertMode() {
+            isInsertMode = !isInsertMode;
+            const btn = document.getElementById('btn-insert');
+            const mapEl = document.getElementById('map');
 
-        // Sidebar logic
-        function toggleSidebar() {
-            const el = document.getElementById('sidebar');
-            el.classList.toggle('hidden');
+            if (isInsertMode) {
+                btn.classList.replace('bg-catppuccin-blue', 'bg-catppuccin-green');
+                btn.textContent = "Clique no Mapa...";
+                mapEl.classList.add('cursor-crosshair');
+            } else {
+                btn.classList.replace('bg-catppuccin-green', 'bg-catppuccin-blue');
+                btn.textContent = "Inserir Item";
+                mapEl.classList.remove('cursor-crosshair');
+                closeInsertModal();
+            }
         }
 
-        // Upload Form
-        document.getElementById('upload-form').addEventListener('submit', async (e) => {
+        function closeInsertModal() {
+            document.getElementById('insert-modal').classList.add('hidden');
+            if (insertMarker) { map.removeLayer(insertMarker); insertMarker = null; }
+        }
+
+        function handleTypeChange() {
+            const type = document.getElementById('insert-type').value;
+            const nameDiv = document.getElementById('field-name');
+            const pointDiv = document.getElementById('field-point');
+
+            if (type === 'Ponto') {
+                // For empty points, maybe "name" is less important, 
+                // but our DB requires name. We can auto-set or ask.
+                // Request says: "155" (Just the number).
+                // Let's hide Name field and use Point number as Name? Or keep both?
+                // Request: "155 (Ponto de Rede)" 
+                // Let's keep Name (Label) and Point separate.
+                nameDiv.classList.remove('hidden');
+            } else {
+                nameDiv.classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('insert-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData();
-            formData.append('name', document.getElementById('new-floor-name').value);
-            formData.append('level_order', document.getElementById('new-floor-level').value);
-            formData.append('file', document.getElementById('new-floor-file').files[0]);
+            if (!currentFloorId) return alert("Selecione um andar!");
+
+            const type = document.getElementById('insert-type').value;
+            const name = document.getElementById('insert-name').value;
+            const point = document.getElementById('insert-point').value;
+            const x = parseFloat(document.getElementById('insert-x').value);
+            const y = parseFloat(document.getElementById('insert-y').value);
+
+            // Validation
+            if (type === 'Ponto' && !name) {
+                // Auto-fill name with Point Number if empty
+                if (point) document.getElementById('insert-name').value = point;
+            }
+
+            const payload = {
+                name: document.getElementById('insert-name').value || (type + " " + point),
+                type: type,
+                point_number: point,
+                floor_id: currentFloorId,
+                x: x,
+                y: y
+            };
 
             try {
-                const res = await fetch('/api/floors/upload', {
+                const res = await fetch('/api/nodes', {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
+
                 if (res.ok) {
-                    alert('Floor uploaded!');
-                    location.reload(); // Simple refresh to load new state
+                    toggleInsertMode(); // Reset
+                    fetchNodes(); // Refresh
                 } else {
-                    alert('Upload failed');
+                    alert('Erro ao salvar no banco.');
                 }
-            } catch (err) {
-                console.error(err);
-                alert('Error uploading');
-            }
+            } catch (err) { console.error(err); alert('Erro de rede.'); }
         });
 
-        // Diagnostics
-        async function checkConnection() {
-            try {
-                const res = await fetch('/api/test-db');
-                const status = await res.json();
-                document.getElementById('status-local').textContent = `Local: ${status.local}`;
-                document.getElementById('status-ocs').textContent = `OCS: ${status.ocs}`;
-            } catch (e) { }
-        }
+
+        // Map Events
+        map.on('click', function (e) {
+            if (!isInsertMode) return;
+
+            // Show marker preview
+            if (insertMarker) map.removeLayer(insertMarker);
+            insertMarker = L.circleMarker(e.latlng, { radius: 6, color: 'white' }).addTo(map);
+
+            // Open Modal
+            const modal = document.getElementById('insert-modal');
+            modal.classList.remove('hidden');
+
+            // Set coords (Leaflet Lat(y), Lng(x)) -> DB X(Lng), Y(Lat)
+            // Wait.. usually X is Longitude, Y is Latitude when mapped to Geo.
+            // L.CRS.Simple: [y, x]. 
+            // GeoJSON expects [x, y].
+            // If we use L.latLng: lat is y, lng is x.
+            document.getElementById('insert-x').value = e.latlng.lng.toFixed(2);
+            document.getElementById('insert-y').value = e.latlng.lat.toFixed(2);
+
+            document.getElementById('insert-name').focus();
+        });
+
+        // Other handlers (Delete, Replace, Sidebar) same as before...
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); }
+        async function deleteFloor(id) { if (confirm("Confirmar exclusão?")) fetch(`/api/floors/${id}`, { method: 'DELETE' }).then(() => location.reload()); }
+        function triggerReplace(id) { floorToReplace = id; document.getElementById('replace-file-input').click(); }
+        document.getElementById('replace-file-input').addEventListener('change', async e => {
+            const fd = new FormData(); fd.append('file', e.target.files[0]);
+            await fetch(`/api/floors/${floorToReplace}/image`, { method: 'POST', body: fd }); location.reload();
+        });
+        document.getElementById('upload-form').addEventListener('submit', async e => {
+            e.preventDefault(); const fd = new FormData();
+            fd.append('name', document.getElementById('new-floor-name').value);
+            fd.append('level_order', document.getElementById('new-floor-level').value);
+            fd.append('file', document.getElementById('new-floor-file').files[0]);
+            await fetch('/api/floors/upload', { method: 'POST', body: fd }); location.reload();
+        });
+        map.on('baselayerchange', e => {
+            const f = floorsData.find(fl => fl.name === e.name);
+            if (f) { currentFloorId = f.id; map.setMaxBounds([[0, 0], [f.height, f.width]]); updateMarkers(); }
+        });
+        async function checkConnection() { try { const r = await fetch('/api/test-db'); const s = await r.json(); document.getElementById('status-local').textContent = `Local: ${s.local}`; document.getElementById('status-ocs').textContent = `OCS: ${s.ocs}`; } catch (e) { } }
 
         init();
-
-        map.on('click', e => {
-            console.log(`Coords: [${e.latlng.lng.toFixed(0)}, ${e.latlng.lat.toFixed(0)}]`);
-            L.popup().setLatLng(e.latlng).setContent(`[${e.latlng.lng.toFixed(0)}, ${e.latlng.lat.toFixed(0)}]`).openOn(map);
-        });
     </script>
 </body>
 

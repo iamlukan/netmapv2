@@ -70,8 +70,34 @@ def delete_floor(floor_id: int, db: Session = Depends(get_db)):
     if not floor:
         raise HTTPException(status_code=404, detail="Floor not found")
         
-    # Optional: Delete file logic here (skipping for safety in dev)
-    
     db.delete(floor)
     db.commit()
     return {"status": "deleted", "id": floor_id}
+
+@router.post("/floors/{floor_id}/image")
+async def update_floor_image(
+    floor_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    floor = db.query(Floor).filter(Floor.id == floor_id).first()
+    if not floor:
+        raise HTTPException(status_code=404, detail="Floor not found")
+
+    # Save new file
+    file_path = os.path.join(STATIC_FLOORS_DIR, file.filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Analyze Image
+    with Image.open(file_path) as img:
+        width, height = img.size
+    
+    # Update Stats
+    floor.image_path = f"/static/assets/floors/{file.filename}"
+    floor.width = width
+    floor.height = height
+    
+    db.commit()
+    db.refresh(floor)
+    return floor
