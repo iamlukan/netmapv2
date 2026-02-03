@@ -59,10 +59,9 @@
             border: 1px solid #313244;
         }
 
-        /* Tooltip Styling (The Permanent Labels) */
+        /* Tooltip Styling */
         .leaflet-tooltip.nm-tooltip {
             background-color: #1e1e2e !important;
-            /* Force Dark Background */
             border-width: 1px;
             border-style: solid;
             border-radius: 4px;
@@ -96,10 +95,8 @@
             color: #89b4fa;
         }
 
-        /* Remove default Leaflet tooltip arrow/border if needed */
         .leaflet-tooltip {
             background-color: transparent;
-            /* Fallback */
             border: none;
             box-shadow: none;
         }
@@ -164,11 +161,12 @@
         <!-- Hidden input for file replacement -->
         <input type="file" id="replace-file-input" accept="image/*" class="hidden">
 
-        <!-- Insert Modal -->
+        <!-- Insert/Edit Modal -->
         <div id="insert-modal"
             class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-catppuccin-mantle border border-catppuccin-surface0 p-6 rounded shadow-xl z-30 w-80">
-            <h3 class="text-lg font-bold mb-4 text-catppuccin-lavender">Inserir Item</h3>
+            <h3 id="modal-title" class="text-lg font-bold mb-4 text-catppuccin-lavender">Inserir Item</h3>
             <form id="insert-form" class="space-y-3">
+                <input type="hidden" id="insert-id"> <!-- ID for Edit Mode -->
                 <input type="hidden" id="insert-x">
                 <input type="hidden" id="insert-y">
 
@@ -197,9 +195,9 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="toggleInsertMode()"
+                    <button type="button" onclick="closeInsertModal()"
                         class="px-3 py-1 bg-catppuccin-surface0 rounded hover:bg-catppuccin-surface1">Cancelar</button>
-                    <button type="submit"
+                    <button type="submit" id="btn-save-modal"
                         class="px-3 py-1 bg-catppuccin-blue text-catppuccin-crust font-bold rounded hover:opacity-90">Salvar</button>
                 </div>
             </form>
@@ -249,6 +247,7 @@
                     const layer = L.imageOverlay(floor.image_path, bounds);
                     newControl.addBaseLayer(layer, floor.name);
 
+                    // Sidebar Item
                     const item = document.createElement('div');
                     item.className = "flex justify-between items-center bg-catppuccin-surface0 p-2 rounded text-sm";
                     item.innerHTML = `
@@ -288,27 +287,23 @@
 
             visibleNodes.forEach(f => {
                 const [y, x] = f.geometry.coordinates;
-                let colorClass = "nm-tooltip-green"; // PC
+                let colorClass = "nm-tooltip-green";
                 let colorHex = "#a6e3a1";
                 let tooltipContent = "";
 
                 if (f.properties.type === 'Ponto') {
                     colorClass = "nm-tooltip-yellow";
                     colorHex = "#f9e2af";
-                    // Just "P: 160"
                     tooltipContent = `P: ${f.properties.point_number || '?'}`;
                 } else if (f.properties.type === 'Ramal') {
                     colorClass = "nm-tooltip-red";
                     colorHex = "#f38ba8";
-                    // "Ramal 5050"
                     tooltipContent = `${f.properties.name}`;
                 } else if (f.properties.type === 'Equipamento') {
                     colorClass = "nm-tooltip-blue";
                     colorHex = "#89b4fa";
-                    // "Switch Core"
                     tooltipContent = `${f.properties.name}`;
                 } else {
-                    // PC: Name + P: Number
                     tooltipContent = `<span class="font-bold">${f.properties.name}</span>`;
                     if (f.properties.point_number) {
                         tooltipContent += `<br><span class="opacity-75">P: ${f.properties.point_number}</span>`;
@@ -326,24 +321,35 @@
                     offset: [0, -4]
                 });
 
-                // Popup for Deletion
+                // Popup for Actions
                 const popupDiv = document.createElement('div');
-                popupDiv.innerHTML = `<p class="font-bold mb-1 border-b border-gray-600 pb-1">${f.properties.name}</p>`;
-                if (f.properties.type !== 'Ponto') popupDiv.innerHTML += `<p class="text-xs mb-2">${f.properties.type}</p>`;
+                popupDiv.className = "flex flex-col gap-2 min-w-[120px]";
+                popupDiv.innerHTML = `<p class="font-bold border-b border-gray-600 pb-1">${f.properties.name}</p>`;
 
+                // Edit Btn
+                const editBtn = document.createElement('button');
+                editBtn.className = "text-xs text-catppuccin-blue hover:text-white w-full text-left";
+                editBtn.innerText = "✏️ Editar Item";
+                editBtn.onclick = () => openEditModal(f);
+
+                // Delete Btn
                 const delBtn = document.createElement('button');
                 delBtn.className = "text-xs text-red-400 hover:text-red-300 w-full text-left";
                 delBtn.innerText = "🗑️ Remover Item";
                 delBtn.onclick = () => deleteNode(f.id);
+
+                popupDiv.appendChild(editBtn);
                 popupDiv.appendChild(delBtn);
 
                 marker.bindPopup(popupDiv);
             });
         }
 
-        // ... Insert Mode, Form Handlers, Delete Logic (Same as before) ...
-
+        // --- Insert / Edit Logic ---
         function toggleInsertMode() {
+            // Cancel any current edit/insert
+            closeInsertModal();
+
             isInsertMode = !isInsertMode;
             const btn = document.getElementById('btn-insert');
             const mapEl = document.getElementById('map');
@@ -356,9 +362,47 @@
                 btn.classList.replace('bg-catppuccin-red', 'bg-catppuccin-blue');
                 btn.textContent = "Inserir Item";
                 mapEl.classList.remove('cursor-crosshair');
-                document.getElementById('insert-modal').classList.add('hidden');
-                if (insertMarker) { map.removeLayer(insertMarker); insertMarker = null; }
             }
+        }
+
+        function closeInsertModal() {
+            document.getElementById('insert-modal').classList.add('hidden');
+            if (insertMarker) { map.removeLayer(insertMarker); insertMarker = null; }
+            resetForm();
+        }
+
+        function resetForm() {
+            document.getElementById('insert-id').value = '';
+            document.getElementById('insert-form').reset();
+            document.getElementById('modal-title').textContent = "Inserir Item";
+            document.getElementById('btn-save-modal').textContent = "Salvar";
+        }
+
+        function openEditModal(feature) {
+            map.closePopup();
+            // Populate Form
+            document.getElementById('insert-id').value = feature.id;
+            document.getElementById('insert-type').value = feature.properties.type;
+
+            // Name Logic: If Ponto, name is hidden in form but let's handle it
+            if (feature.properties.type === 'Ponto') {
+                document.getElementById('insert-point').value = feature.properties.point_number;
+            } else {
+                document.getElementById('insert-name').value = feature.properties.name;
+                document.getElementById('insert-point').value = feature.properties.point_number || '';
+            }
+
+            // Keep Coords same (not moving)
+            const [y, x] = feature.geometry.coordinates; // GeoJSON x,y
+            document.getElementById('insert-x').value = x; // Not used on update unless we implement move
+            document.getElementById('insert-y').value = y;
+
+            handleTypeChange();
+
+            // UI Update
+            document.getElementById('modal-title').textContent = "Editar Item";
+            document.getElementById('btn-save-modal').textContent = "Atualizar";
+            document.getElementById('insert-modal').classList.remove('hidden');
         }
 
         function handleTypeChange() {
@@ -385,42 +429,52 @@
             e.preventDefault();
             if (!currentFloorId) return alert("Selecione um andar!");
 
+            const id = document.getElementById('insert-id').value;
             const type = document.getElementById('insert-type').value;
             let name = document.getElementById('insert-name').value;
             const point = document.getElementById('insert-point').value;
             const x = parseFloat(document.getElementById('insert-x').value);
             const y = parseFloat(document.getElementById('insert-y').value);
 
-            // Logic Fixes
-            if (type === 'Ponto') {
-                name = `Ponto ${point}`;
-            }
+            if (type === 'Ponto') name = `Ponto ${point}`;
 
             const payload = {
                 name: name || "Sem Nome",
                 type: type,
-                point_number: point,
-                floor_id: currentFloorId,
-                x: x,
-                y: y
+                point_number: point || null,
+                floor_id: currentFloorId
             };
 
+            // If ID exists -> PUT. Else -> POST (with coords)
+            let url = '/api/nodes';
+            let method = 'POST';
+
+            if (id) {
+                url = `/api/nodes/${id}`;
+                method = 'PUT';
+            } else {
+                payload.x = x;
+                payload.y = y;
+            }
+
             try {
-                const res = await fetch('/api/nodes', {
-                    method: 'POST',
+                const res = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
                 if (res.ok) {
-                    toggleInsertMode();
+                    closeInsertModal();
+                    if (isInsertMode) toggleInsertMode(); // exit insert mode if active
                     fetchNodes();
                 } else {
-                    alert('Erro ao salvar no banco.');
+                    alert('Erro ao salvar.');
                 }
             } catch (err) { console.error(err); alert('Erro de rede.'); }
         });
 
+        // Delete Logic
         async function deleteNode(id) {
             if (!confirm("Remover este item?")) return;
             try {
@@ -429,19 +483,19 @@
             } catch (e) { alert("Erro ao deletar"); }
         }
 
+        // Map Click
         map.on('click', function (e) {
             if (!isInsertMode) return;
+            resetForm(); // Ensure clean state
             if (insertMarker) map.removeLayer(insertMarker);
             insertMarker = L.circleMarker(e.latlng, { radius: 6, color: 'white' }).addTo(map);
             document.getElementById('insert-modal').classList.remove('hidden');
             document.getElementById('insert-x').value = e.latlng.lng.toFixed(2);
             document.getElementById('insert-y').value = e.latlng.lat.toFixed(2);
-            const type = document.getElementById('insert-type').value;
-            if (type === 'Ponto') document.getElementById('insert-point').focus();
-            else document.getElementById('insert-name').focus();
             handleTypeChange();
         });
 
+        // Standard helpers
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); }
         async function deleteFloor(id) { if (confirm("Confirmar exclusão?")) fetch(`/api/floors/${id}`, { method: 'DELETE' }).then(() => location.reload()); }
         function triggerReplace(id) { floorToReplace = id; document.getElementById('replace-file-input').click(); }

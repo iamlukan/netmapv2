@@ -62,3 +62,33 @@ def delete_node(node_id: int, db: Session = Depends(get_db)):
     db.delete(node)
     db.commit()
     return {"status": "deleted", "id": node_id}
+
+class NodeUpdate(BaseModel):
+    name: str | None = None
+    type: str | None = None
+    point_number: str | None = None
+    floor_id: int | None = None
+    x: float | None = None
+    y: float | None = None
+
+@router.put("/nodes/{node_id}")
+def update_node(node_id: int, node_update: NodeUpdate, db: Session = Depends(get_db)):
+    node = db.query(NetworkNode).filter(NetworkNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    if node_update.name is not None:
+        node.name = node_update.name
+    if node_update.type is not None:
+        node.type = node_update.type
+    if node_update.point_number is not None:
+        node.point_number = node_update.point_number
+    if node_update.floor_id is not None:
+        node.floor_id = node_update.floor_id
+    
+    # Update geometry if coords changed
+    if node_update.x is not None and node_update.y is not None:
+        node.geom = f"POINT({node_update.x} {node_update.y})"
+        
+    db.commit()
+    return node.to_geojson()
