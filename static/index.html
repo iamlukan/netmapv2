@@ -287,7 +287,7 @@
 
         async function fetchFloors() {
             try {
-                const res = await fetch('/api/floors');
+                const res = await fetchWithAuth('/api/floors');
                 floorsData = await res.json();
                 layerControl.remove();
                 const newControl = L.control.layers(null, null, { collapsed: false, position: 'topright' }).addTo(map);
@@ -307,7 +307,7 @@
         }
 
         async function fetchNodes() {
-            try { const res = await fetch('/api/nodes'); const data = await res.json(); allNodes = data.features; updateMarkers(); } catch (e) { }
+            try { const res = await fetchWithAuth('/api/nodes'); const data = await res.json(); allNodes = data.features; updateMarkers(); } catch (e) { }
         }
 
         // DRAG AND DROP LOGIC
@@ -361,7 +361,7 @@
 
             if (confirm(`Adicionar ${machineName} nesta posição?`)) {
                 try {
-                    const res = await fetch('/api/nodes', {
+                    const res = await fetchWithAuth('/api/nodes', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
@@ -381,7 +381,7 @@
         async function fetchAudit() {
             const container = document.getElementById('inventory-list');
             try {
-                const res = await fetch('/api/inventory/audit');
+                const res = await fetchWithAuth('/api/inventory/audit');
                 const data = await res.json();
 
                 if (data.error) {
@@ -425,7 +425,7 @@
         async function fetchOCSData(hostname, container) {
             try {
                 container.innerHTML = "<span class='text-xs text-catppuccin-overlay0 animate-pulse'>Buscando OCS...</span>";
-                const res = await fetch(`/api/ocs/machine/${hostname}`);
+                const res = await fetchWithAuth(`/api/ocs/machine/${hostname}`);
                 if (res.ok) {
                     const data = await res.json();
                     container.innerHTML = `
@@ -450,7 +450,7 @@
 
         async function fetchStatusMap() {
             try {
-                const res = await fetch('/api/inventory/status');
+                const res = await fetchWithAuth('/api/inventory/status');
                 if (res.ok) {
                     nodeStatusMap = await res.json();
                     updateMarkers(); // Refresh colors
@@ -558,15 +558,15 @@
         function resetForm() { document.getElementById('insert-id').value = ''; document.getElementById('insert-form').reset(); document.getElementById('modal-title').innerText = "Inserir Item"; document.getElementById('btn-save-modal').innerText = "Salvar"; }
         function openEditModal(f) { map.closePopup(); document.getElementById('insert-id').value = f.id; document.getElementById('insert-type').value = f.properties.type; if (f.properties.type === 'Ponto') document.getElementById('insert-point').value = f.properties.point_number; else { document.getElementById('insert-name').value = f.properties.name; document.getElementById('insert-point').value = f.properties.point_number || ''; } const [y, x] = f.geometry.coordinates; document.getElementById('insert-x').value = x; document.getElementById('insert-y').value = y; handleTypeChange(); document.getElementById('modal-title').innerText = "Editar Item"; document.getElementById('btn-save-modal').innerText = "Atualizar"; document.getElementById('insert-modal').classList.remove('hidden'); }
         function handleTypeChange() { const t = document.getElementById('insert-type').value; const nd = document.getElementById('field-name'); const pd = document.getElementById('field-point'); const ln = document.getElementById('label-name'); if (t === 'Ponto') { nd.classList.add('hidden'); pd.classList.remove('hidden'); } else if (t === 'Ramal') { nd.classList.remove('hidden'); ln.innerText = "Número do Ramal"; pd.classList.add('hidden'); } else { nd.classList.remove('hidden'); ln.innerText = "Nome"; pd.classList.remove('hidden'); } }
-        document.getElementById('insert-form').addEventListener('submit', async e => { e.preventDefault(); if (!currentFloorId) return alert("Selecione um andar!"); const id = document.getElementById('insert-id').value; const t = document.getElementById('insert-type').value; let n = document.getElementById('insert-name').value; const p = document.getElementById('insert-point').value; const x = parseFloat(document.getElementById('insert-x').value); const y = parseFloat(document.getElementById('insert-y').value); if (t === 'Ponto') n = `Ponto ${p}`; const pay = { name: n || "Sem Nome", type: t, point_number: p || null, floor_id: currentFloorId }; let u = '/api/nodes', m = 'POST'; if (id) { u += `/${id}`; m = 'PUT'; } else { pay.x = x; pay.y = y; } await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pay) }); closeInsertModal(); if (isInsertMode) toggleInsertMode(); fetchNodes(); fetchAudit(); });
-        async function deleteNode(id) { if (confirm("Remover?")) { await fetch(`/api/nodes/${id}`, { method: 'DELETE' }); fetchNodes(); fetchAudit(); } }
+        document.getElementById('insert-form').addEventListener('submit', async e => { e.preventDefault(); if (!currentFloorId) return alert("Selecione um andar!"); const id = document.getElementById('insert-id').value; const t = document.getElementById('insert-type').value; let n = document.getElementById('insert-name').value; const p = document.getElementById('insert-point').value; const x = parseFloat(document.getElementById('insert-x').value); const y = parseFloat(document.getElementById('insert-y').value); if (t === 'Ponto') n = `Ponto ${p}`; const pay = { name: n || "Sem Nome", type: t, point_number: p || null, floor_id: currentFloorId }; let u = '/api/nodes', m = 'POST'; if (id) { u += `/${id}`; m = 'PUT'; } else { pay.x = x; pay.y = y; } await fetchWithAuth(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pay) }); closeInsertModal(); if (isInsertMode) toggleInsertMode(); fetchNodes(); fetchAudit(); });
+        async function deleteNode(id) { if (confirm("Remover?")) { await fetchWithAuth(`/api/nodes/${id}`, { method: 'DELETE' }); fetchNodes(); fetchAudit(); } }
         map.on('click', e => { if (!isInsertMode) return; resetForm(); if (insertMarker) map.removeLayer(insertMarker); insertMarker = L.circleMarker(e.latlng, { radius: 6, color: 'white' }).addTo(map); document.getElementById('insert-modal').classList.remove('hidden'); document.getElementById('insert-x').value = e.latlng.lng.toFixed(2); document.getElementById('insert-y').value = e.latlng.lat.toFixed(2); handleTypeChange(); });
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); document.getElementById('sidebar').classList.toggle('flex'); }
         function toggleRightSidebar() { document.getElementById('sidebar-right').classList.toggle('hidden'); document.getElementById('sidebar-right').classList.toggle('flex'); }
-        async function deleteFloor(id) { if (confirm("Confirmar?")) fetch(`/api/floors/${id}`, { method: 'DELETE' }).then(() => location.reload()); }
+        async function deleteFloor(id) { if (confirm("Confirmar?")) fetchWithAuth(`/api/floors/${id}`, { method: 'DELETE' }).then(() => location.reload()); }
         function triggerReplace(id) { floorToReplace = id; document.getElementById('replace-file-input').click(); }
-        document.getElementById('replace-file-input').addEventListener('change', async e => { const fd = new FormData(); fd.append('file', e.target.files[0]); await fetch(`/api/floors/${floorToReplace}/image`, { method: 'POST', body: fd }); location.reload(); });
-        document.getElementById('upload-form').addEventListener('submit', async e => { e.preventDefault(); const fd = new FormData(); fd.append('name', document.getElementById('new-floor-name').value); fd.append('level_order', document.getElementById('new-floor-level').value); fd.append('file', document.getElementById('new-floor-file').value ? document.getElementById('new-floor-file').files[0] : null); await fetch('/api/floors/upload', { method: 'POST', body: fd }); location.reload(); });
+        document.getElementById('replace-file-input').addEventListener('change', async e => { const fd = new FormData(); fd.append('file', e.target.files[0]); await fetchWithAuth(`/api/floors/${floorToReplace}/image`, { method: 'POST', body: fd }); location.reload(); });
+        document.getElementById('upload-form').addEventListener('submit', async e => { e.preventDefault(); const fd = new FormData(); fd.append('name', document.getElementById('new-floor-name').value); fd.append('level_order', document.getElementById('new-floor-level').value); fd.append('file', document.getElementById('new-floor-file').value ? document.getElementById('new-floor-file').files[0] : null); await fetchWithAuth('/api/floors/upload', { method: 'POST', body: fd }); location.reload(); });
         map.on('baselayerchange', e => { const f = floorsData.find(fl => fl.name === e.name); if (f) { currentFloorId = f.id; map.setMaxBounds([[0, 0], [f.height, f.width]]); updateMarkers(); } });
         async function checkConnection() { try { const r = await fetch('/api/test-db'); const s = await r.json(); document.getElementById('status-local').innerText = `Local: ${s.local}`; document.getElementById('status-ocs').innerText = `ocs: ${s.ocs}`; } catch (e) { } }
         init();

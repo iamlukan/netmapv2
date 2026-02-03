@@ -4,8 +4,14 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
 
-# Secret key should be in env vars, default strictly for dev
-SECRET_KEY = os.getenv("SECRET_KEY", "netmap_super_secret_key_change_me")
+# Secret key logic
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    # Check for production env to be strict
+    if os.getenv("ENV") == "production":
+        raise ValueError("FATAL: SECRET_KEY not set in production!")
+    SECRET_KEY = "netmap_super_secret_key_change_me"
+    print("WARNING: Using default insecure SECRET_KEY.")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 
