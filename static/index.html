@@ -26,7 +26,8 @@
                             red: '#f38ba8',
                             green: '#a6e3a1',
                             yellow: '#f9e2af',
-                            mauve: '#cba6f7'
+                            mauve: '#cba6f7',
+                            peach: '#fab387'
                         }
                     }
                 }
@@ -113,6 +114,15 @@
         .cursor-crosshair {
             cursor: crosshair !important;
         }
+
+        /* Draggable Items */
+        .draggable-item {
+            cursor: grab;
+        }
+
+        .draggable-item:active {
+            cursor: grabbing;
+        }
     </style>
 </head>
 
@@ -120,7 +130,7 @@
 
     <!-- Header -->
     <header
-        class="h-16 bg-catppuccin-mantle border-b border-catppuccin-surface0 flex items-center justify-between px-6">
+        class="h-16 bg-catppuccin-mantle border-b border-catppuccin-surface0 flex items-center justify-between px-6 z-30 relative">
         <div class="flex items-center gap-4">
             <h1 class="text-2xl font-bold text-catppuccin-lavender">Netmap v2</h1>
             <button onclick="toggleSidebar()"
@@ -128,7 +138,10 @@
                 Background</button>
             <button id="btn-insert" onclick="toggleInsertMode()"
                 class="text-sm bg-catppuccin-blue text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inserir
-                Item</button>
+                Manual</button>
+            <button onclick="toggleRightSidebar()"
+                class="text-sm bg-catppuccin-peach text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inventário
+                Pendente</button>
         </div>
         <div id="connection-status" class="flex gap-2 text-xs">
             <span id="status-local" class="px-2 py-1 rounded bg-catppuccin-surface0 text-catppuccin-overlay0">Local:
@@ -139,12 +152,11 @@
     </header>
 
     <div class="flex flex-grow relative">
-        <!-- Sidebar -->
+        <!-- Sidebar Left (Floor Manager) -->
         <aside id="sidebar"
-            class="w-80 bg-catppuccin-mantle border-r border-catppuccin-surface0 hidden flex flex-col p-4 z-20 absolute h-full transition-transform">
+            class="w-80 bg-catppuccin-mantle border-r border-catppuccin-surface0 hidden flex-col p-4 z-20 absolute h-full transition-transform left-0 top-0 pt-20">
             <h2 class="text-lg font-bold mb-4">Gerenciar Andares</h2>
             <div id="floor-list" class="space-y-2 mb-4 overflow-y-auto flex-grow"></div>
-            <!-- Upload form hidden or same as before... -->
             <div class="border-t border-catppuccin-surface0 pt-4">
                 <h3 class="text-sm font-bold mb-2">Upload Novo Andar</h3>
                 <form id="upload-form" class="space-y-2 text-xs">
@@ -159,7 +171,22 @@
             </div>
         </aside>
 
-        <!-- Hidden input -->
+        <!-- Sidebar Right (Pending Inventory) -->
+        <aside id="sidebar-right"
+            class="w-80 bg-catppuccin-mantle border-l border-catppuccin-surface0 hidden flex-col p-4 z-20 absolute h-full transition-transform right-0 top-0 pt-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-catppuccin-peach">Inventário Pendente</h2>
+                <button onclick="fetchAudit()" class="text-xs text-catppuccin-blue hover:text-white">↻
+                    Atualizar</button>
+            </div>
+            <p class="text-xs text-catppuccin-overlay0 mb-4">Arraste para o mapa para posicionar.</p>
+            <div id="inventory-list" class="space-y-2 overflow-y-auto flex-grow pb-20">
+                <!-- Items will be injected here -->
+                <div class="text-center text-catppuccin-overlay0 text-sm mt-10">Carregando...</div>
+            </div>
+        </aside>
+
+        <!-- Hidden input for file replacement -->
         <input type="file" id="replace-file-input" accept="image/*" class="hidden">
 
         <!-- Insert/Edit Modal -->
@@ -205,7 +232,8 @@
         </div>
 
         <!-- Map -->
-        <main class="flex-grow relative w-full">
+        <!-- Add dragover/drop handlers -->
+        <main class="flex-grow relative w-full" ondrop="handleDrop(event)" ondragover="allowDrop(event)">
             <div id="map"></div>
         </main>
     </div>
@@ -214,7 +242,6 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
-        // Use exact same JS logic but with updated Popup logic for OCS
         const map = L.map('map', { crs: L.CRS.Simple, minZoom: -3, maxZoom: 2, zoomSnap: 0.5 });
         const layerControl = L.control.layers(null, null, { collapsed: false, position: 'topright' }).addTo(map);
         let currentFloorId = null;
@@ -228,7 +255,8 @@
         async function init() {
             await fetchFloors();
             await fetchNodes();
-            checkConnection();
+            checkConnection(); // also calls fetchAudit inside checkConnection logic? No, let's call separately
+            fetchAudit();
             setInterval(checkConnection, 30000);
         }
 
@@ -255,6 +283,98 @@
 
         async function fetchNodes() {
             try { const res = await fetch('/api/nodes'); const data = await res.json(); allNodes = data.features; updateMarkers(); } catch (e) { }
+        }
+
+        // DRAG AND DROP LOGIC
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev, name) {
+            ev.dataTransfer.setData("machineName", name);
+        }
+
+        async function handleDrop(ev) {
+            ev.preventDefault();
+            if (!currentFloorId) return alert("Selecione um andar primeiro!");
+
+            const machineName = ev.dataTransfer.getData("machineName");
+            if (!machineName) return;
+
+            // Calculate Map Coordinates from Drop Event
+            // map.mouseEventToLatLng requires a MouseEvent. 'ev' is a DragEvent which inherits from MouseEvent but we rely on Leaflet.
+            // Leaflet map container relative position calculation:
+            const containerPoint = map.mouseEventToContainerPoint(ev);
+            const latLng = map.containerPointToLatLng(containerPoint);
+
+            // Auto-Save Node
+            // We assume it's type 'Computador' since it came from Inventory list
+            const payload = {
+                name: machineName,
+                type: 'Computador',
+                point_number: null,
+                floor_id: currentFloorId,
+                x: latLng.lng, // X is Lng (Width)
+                y: latLng.lat  // Y is Lat (Height)
+            };
+
+            if (confirm(`Adicionar ${machineName} nesta posição?`)) {
+                try {
+                    const res = await fetch('/api/nodes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) {
+                        fetchNodes(); // Refresh map
+                        fetchAudit(); // Refresh sidebar (should remove item)
+                    } else {
+                        alert("Erro ao salvar item.");
+                    }
+                } catch (e) {
+                    alert("Erro de conexão.");
+                }
+            }
+        }
+
+        async function fetchAudit() {
+            const container = document.getElementById('inventory-list');
+            try {
+                const res = await fetch('/api/inventory/audit');
+                const data = await res.json();
+
+                if (data.error) {
+                    container.innerHTML = `<div class="text-red-400 text-xs p-2">${data.error}</div>`;
+                    return;
+                }
+
+                container.innerHTML = '';
+                const missingInMap = data.missing_in_map || [];
+
+                if (missingInMap.length === 0) {
+                    container.innerHTML = `<div class="text-catppuccin-green text-xs p-2">Tudo sincronizado!</div>`;
+                    return;
+                }
+
+                missingInMap.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = "bg-catppuccin-surface0 p-2 rounded text-sm flex justify-between items-center draggable-item hover:bg-catppuccin-surface1 transition-colors";
+                    div.draggable = true;
+                    div.ondragstart = (ev) => drag(ev, item.name);
+
+                    div.innerHTML = `
+                        <div>
+                            <div class="font-bold text-catppuccin-text">🖥️ ${item.name}</div>
+                            <div class="text-[10px] text-catppuccin-overlay0">${item.tag || 'Sem TAG'}</div>
+                        </div>
+                        <div class="text-catppuccin-peach">⋮</div>
+                    `;
+                    container.appendChild(div);
+                });
+
+            } catch (e) {
+                container.innerHTML = `<div class="text-red-400 text-xs p-2">Erro ao carregar auditoria.</div>`;
+            }
         }
 
         async function fetchOCSData(hostname, container) {
@@ -317,12 +437,6 @@
                 ocsDiv.id = `ocs-${f.id}`;
                 popupDiv.appendChild(ocsDiv);
 
-                // Initialize OCS Fetch on pop
-                if (f.properties.type === 'Computador') {
-                    // We can't fetch immediately as popup isn't open? 
-                    // No, we can append logic to the marker click event or use Leaflet popupopen
-                }
-
                 const editBtn = document.createElement('button');
                 editBtn.className = "text-xs text-catppuccin-blue hover:text-white w-full text-left mt-1";
                 editBtn.innerText = "✏️ Editar Item";
@@ -345,22 +459,22 @@
             });
         }
 
-        // ... (Keep existing Insert/Edit/Map logic same as previous step) ...
-        function toggleInsertMode() { closeInsertModal(); isInsertMode = !isInsertMode; document.getElementById('btn-insert').classList.toggle('bg-catppuccin-red', isInsertMode); document.getElementById('map').classList.toggle('cursor-crosshair', isInsertMode); document.getElementById('btn-insert').innerText = isInsertMode ? "Cancelar Inserção" : "Inserir Item"; }
+        function toggleInsertMode() { closeInsertModal(); isInsertMode = !isInsertMode; document.getElementById('btn-insert').classList.toggle('bg-catppuccin-red', isInsertMode); document.getElementById('map').classList.toggle('cursor-crosshair', isInsertMode); document.getElementById('btn-insert').innerText = isInsertMode ? "Cancelar Inserção" : "Inserir Manual"; }
         function closeInsertModal() { document.getElementById('insert-modal').classList.add('hidden'); if (insertMarker) { map.removeLayer(insertMarker); insertMarker = null; } resetForm(); }
         function resetForm() { document.getElementById('insert-id').value = ''; document.getElementById('insert-form').reset(); document.getElementById('modal-title').innerText = "Inserir Item"; document.getElementById('btn-save-modal').innerText = "Salvar"; }
         function openEditModal(f) { map.closePopup(); document.getElementById('insert-id').value = f.id; document.getElementById('insert-type').value = f.properties.type; if (f.properties.type === 'Ponto') document.getElementById('insert-point').value = f.properties.point_number; else { document.getElementById('insert-name').value = f.properties.name; document.getElementById('insert-point').value = f.properties.point_number || ''; } const [y, x] = f.geometry.coordinates; document.getElementById('insert-x').value = x; document.getElementById('insert-y').value = y; handleTypeChange(); document.getElementById('modal-title').innerText = "Editar Item"; document.getElementById('btn-save-modal').innerText = "Atualizar"; document.getElementById('insert-modal').classList.remove('hidden'); }
         function handleTypeChange() { const t = document.getElementById('insert-type').value; const nd = document.getElementById('field-name'); const pd = document.getElementById('field-point'); const ln = document.getElementById('label-name'); if (t === 'Ponto') { nd.classList.add('hidden'); pd.classList.remove('hidden'); } else if (t === 'Ramal') { nd.classList.remove('hidden'); ln.innerText = "Número do Ramal"; pd.classList.add('hidden'); } else { nd.classList.remove('hidden'); ln.innerText = "Nome"; pd.classList.remove('hidden'); } }
-        document.getElementById('insert-form').addEventListener('submit', async e => { e.preventDefault(); if (!currentFloorId) return alert("Selecione um andar!"); const id = document.getElementById('insert-id').value; const t = document.getElementById('insert-type').value; let n = document.getElementById('insert-name').value; const p = document.getElementById('insert-point').value; const x = parseFloat(document.getElementById('insert-x').value); const y = parseFloat(document.getElementById('insert-y').value); if (t === 'Ponto') n = `Ponto ${p}`; const pay = { name: n || "Sem Nome", type: t, point_number: p || null, floor_id: currentFloorId }; let u = '/api/nodes', m = 'POST'; if (id) { u += `/${id}`; m = 'PUT'; } else { pay.x = x; pay.y = y; } await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pay) }); closeInsertModal(); if (isInsertMode) toggleInsertMode(); fetchNodes(); });
-        async function deleteNode(id) { if (confirm("Remover?")) { await fetch(`/api/nodes/${id}`, { method: 'DELETE' }); fetchNodes(); } }
+        document.getElementById('insert-form').addEventListener('submit', async e => { e.preventDefault(); if (!currentFloorId) return alert("Selecione um andar!"); const id = document.getElementById('insert-id').value; const t = document.getElementById('insert-type').value; let n = document.getElementById('insert-name').value; const p = document.getElementById('insert-point').value; const x = parseFloat(document.getElementById('insert-x').value); const y = parseFloat(document.getElementById('insert-y').value); if (t === 'Ponto') n = `Ponto ${p}`; const pay = { name: n || "Sem Nome", type: t, point_number: p || null, floor_id: currentFloorId }; let u = '/api/nodes', m = 'POST'; if (id) { u += `/${id}`; m = 'PUT'; } else { pay.x = x; pay.y = y; } await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pay) }); closeInsertModal(); if (isInsertMode) toggleInsertMode(); fetchNodes(); fetchAudit(); });
+        async function deleteNode(id) { if (confirm("Remover?")) { await fetch(`/api/nodes/${id}`, { method: 'DELETE' }); fetchNodes(); fetchAudit(); } }
         map.on('click', e => { if (!isInsertMode) return; resetForm(); if (insertMarker) map.removeLayer(insertMarker); insertMarker = L.circleMarker(e.latlng, { radius: 6, color: 'white' }).addTo(map); document.getElementById('insert-modal').classList.remove('hidden'); document.getElementById('insert-x').value = e.latlng.lng.toFixed(2); document.getElementById('insert-y').value = e.latlng.lat.toFixed(2); handleTypeChange(); });
-        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); document.getElementById('sidebar').classList.toggle('flex'); }
+        function toggleRightSidebar() { document.getElementById('sidebar-right').classList.toggle('hidden'); document.getElementById('sidebar-right').classList.toggle('flex'); }
         async function deleteFloor(id) { if (confirm("Confirmar?")) fetch(`/api/floors/${id}`, { method: 'DELETE' }).then(() => location.reload()); }
         function triggerReplace(id) { floorToReplace = id; document.getElementById('replace-file-input').click(); }
         document.getElementById('replace-file-input').addEventListener('change', async e => { const fd = new FormData(); fd.append('file', e.target.files[0]); await fetch(`/api/floors/${floorToReplace}/image`, { method: 'POST', body: fd }); location.reload(); });
         document.getElementById('upload-form').addEventListener('submit', async e => { e.preventDefault(); const fd = new FormData(); fd.append('name', document.getElementById('new-floor-name').value); fd.append('level_order', document.getElementById('new-floor-level').value); fd.append('file', document.getElementById('new-floor-file').value ? document.getElementById('new-floor-file').files[0] : null); await fetch('/api/floors/upload', { method: 'POST', body: fd }); location.reload(); });
         map.on('baselayerchange', e => { const f = floorsData.find(fl => fl.name === e.name); if (f) { currentFloorId = f.id; map.setMaxBounds([[0, 0], [f.height, f.width]]); updateMarkers(); } });
-        async function checkConnection() { try { const r = await fetch('/api/test-db'); const s = await r.json(); document.getElementById('status-local').innerText = `Local: ${s.local}`; document.getElementById('status-ocs').innerText = `OCS: ${s.ocs}`; } catch (e) { } }
+        async function checkConnection() { try { const r = await fetch('/api/test-db'); const s = await r.json(); document.getElementById('status-local').innerText = `Local: ${s.local}`; document.getElementById('status-ocs').innerText = `ocs: ${s.ocs}`; } catch (e) { } }
         init();
     </script>
 </body>
