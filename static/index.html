@@ -25,7 +25,8 @@
                             lavender: '#b4befe',
                             red: '#f38ba8',
                             green: '#a6e3a1',
-                            yellow: '#f9e2af'
+                            yellow: '#f9e2af',
+                            mauve: '#cba6f7'
                         }
                     }
                 }
@@ -50,11 +51,62 @@
             background: #11111b;
         }
 
+        /* Popup Styling */
         .leaflet-popup-content-wrapper,
         .leaflet-popup-tip {
             background: #181825;
             color: #cdd6f4;
             border: 1px solid #313244;
+        }
+
+        /* Tooltip Styling (The Permanent Labels) */
+        .leaflet-tooltip.nm-tooltip {
+            background-color: #1e1e2e !important;
+            /* Force Dark Background */
+            border-width: 1px;
+            border-style: solid;
+            border-radius: 4px;
+            font-family: sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.2;
+            padding: 2px 5px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            opacity: 1 !important;
+        }
+
+        .nm-tooltip-green {
+            border-color: #a6e3a1;
+            color: #a6e3a1;
+        }
+
+        .nm-tooltip-yellow {
+            border-color: #f9e2af;
+            color: #f9e2af;
+        }
+
+        .nm-tooltip-red {
+            border-color: #f38ba8;
+            color: #f38ba8;
+        }
+
+        .nm-tooltip-blue {
+            border-color: #89b4fa;
+            color: #89b4fa;
+        }
+
+        /* Remove default Leaflet tooltip arrow/border if needed */
+        .leaflet-tooltip {
+            background-color: transparent;
+            /* Fallback */
+            border: none;
+            box-shadow: none;
+        }
+
+        .leaflet-tooltip-left:before,
+        .leaflet-tooltip-right:before {
+            border: none !important;
         }
 
         .leaflet-container {
@@ -128,12 +180,13 @@
                         <option value="Computador">Computador</option>
                         <option value="Ponto">Ponto de Rede (Vazio)</option>
                         <option value="Ramal">Ramal</option>
+                        <option value="Equipamento">Equipamento</option>
                     </select>
                 </div>
 
                 <div id="field-name">
-                    <label class="block text-xs text-catppuccin-overlay0 mb-1">Nome</label>
-                    <input type="text" id="insert-name" placeholder="Ex: RJ-PC01"
+                    <label id="label-name" class="block text-xs text-catppuccin-overlay0 mb-1">Nome</label>
+                    <input type="text" id="insert-name" placeholder="Nome do Item"
                         class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0">
                 </div>
 
@@ -144,7 +197,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeInsertModal()"
+                    <button type="button" onclick="toggleInsertMode()"
                         class="px-3 py-1 bg-catppuccin-surface0 rounded hover:bg-catppuccin-surface1">Cancelar</button>
                     <button type="submit"
                         class="px-3 py-1 bg-catppuccin-blue text-catppuccin-crust font-bold rounded hover:opacity-90">Salvar</button>
@@ -235,63 +288,96 @@
 
             visibleNodes.forEach(f => {
                 const [y, x] = f.geometry.coordinates;
-                let color = "#a6e3a1"; // Green (PC)
-                if (f.properties.type === 'Ponto') color = "#f9e2af"; // Yellow (Empty)
-                if (f.properties.type === 'Ramal') color = "#f38ba8"; // Red (Phone)
+                let colorClass = "nm-tooltip-green"; // PC
+                let colorHex = "#a6e3a1";
+                let tooltipContent = "";
 
-                const popupContent = `
-                    <div class="font-sans">
-                        <h3 class="font-bold text-catppuccin-lavender">${f.properties.name}</h3>
-                        ${f.properties.point_number ? `<p class="text-xs text-catppuccin-blue">Ponto: ${f.properties.point_number}</p>` : ''}
-                        ${f.properties.ip_address ? `<p class="text-xs text-catppuccin-text">${f.properties.ip_address}</p>` : ''}
-                        <p class="text-xs text-catppuccin-overlay0">${f.properties.type}</p>
-                    </div>
-                `;
+                if (f.properties.type === 'Ponto') {
+                    colorClass = "nm-tooltip-yellow";
+                    colorHex = "#f9e2af";
+                    // Just "P: 160"
+                    tooltipContent = `P: ${f.properties.point_number || '?'}`;
+                } else if (f.properties.type === 'Ramal') {
+                    colorClass = "nm-tooltip-red";
+                    colorHex = "#f38ba8";
+                    // "Ramal 5050"
+                    tooltipContent = `${f.properties.name}`;
+                } else if (f.properties.type === 'Equipamento') {
+                    colorClass = "nm-tooltip-blue";
+                    colorHex = "#89b4fa";
+                    // "Switch Core"
+                    tooltipContent = `${f.properties.name}`;
+                } else {
+                    // PC: Name + P: Number
+                    tooltipContent = `<span class="font-bold">${f.properties.name}</span>`;
+                    if (f.properties.point_number) {
+                        tooltipContent += `<br><span class="opacity-75">P: ${f.properties.point_number}</span>`;
+                    }
+                }
 
-                L.circleMarker([x, y], { radius: 6, fillColor: color, color: "#11111b", weight: 1, fillOpacity: 0.8 })
-                    .bindPopup(popupContent)
+                const marker = L.circleMarker([x, y], { radius: 4, fillColor: colorHex, color: "#11111b", weight: 1, fillOpacity: 0.9 })
                     .addTo(markersLayer);
+
+                // Permanent Tooltip
+                marker.bindTooltip(tooltipContent, {
+                    permanent: true,
+                    direction: 'top',
+                    className: `nm-tooltip ${colorClass}`,
+                    offset: [0, -4]
+                });
+
+                // Popup for Deletion
+                const popupDiv = document.createElement('div');
+                popupDiv.innerHTML = `<p class="font-bold mb-1 border-b border-gray-600 pb-1">${f.properties.name}</p>`;
+                if (f.properties.type !== 'Ponto') popupDiv.innerHTML += `<p class="text-xs mb-2">${f.properties.type}</p>`;
+
+                const delBtn = document.createElement('button');
+                delBtn.className = "text-xs text-red-400 hover:text-red-300 w-full text-left";
+                delBtn.innerText = "🗑️ Remover Item";
+                delBtn.onclick = () => deleteNode(f.id);
+                popupDiv.appendChild(delBtn);
+
+                marker.bindPopup(popupDiv);
             });
         }
 
-        // --- Insert Mode Logic ---
+        // ... Insert Mode, Form Handlers, Delete Logic (Same as before) ...
+
         function toggleInsertMode() {
             isInsertMode = !isInsertMode;
             const btn = document.getElementById('btn-insert');
             const mapEl = document.getElementById('map');
 
             if (isInsertMode) {
-                btn.classList.replace('bg-catppuccin-blue', 'bg-catppuccin-green');
-                btn.textContent = "Clique no Mapa...";
+                btn.classList.replace('bg-catppuccin-blue', 'bg-catppuccin-red');
+                btn.textContent = "Cancelar Inserção";
                 mapEl.classList.add('cursor-crosshair');
             } else {
-                btn.classList.replace('bg-catppuccin-green', 'bg-catppuccin-blue');
+                btn.classList.replace('bg-catppuccin-red', 'bg-catppuccin-blue');
                 btn.textContent = "Inserir Item";
                 mapEl.classList.remove('cursor-crosshair');
-                closeInsertModal();
+                document.getElementById('insert-modal').classList.add('hidden');
+                if (insertMarker) { map.removeLayer(insertMarker); insertMarker = null; }
             }
-        }
-
-        function closeInsertModal() {
-            document.getElementById('insert-modal').classList.add('hidden');
-            if (insertMarker) { map.removeLayer(insertMarker); insertMarker = null; }
         }
 
         function handleTypeChange() {
             const type = document.getElementById('insert-type').value;
             const nameDiv = document.getElementById('field-name');
             const pointDiv = document.getElementById('field-point');
+            const labelName = document.getElementById('label-name');
 
             if (type === 'Ponto') {
-                // For empty points, maybe "name" is less important, 
-                // but our DB requires name. We can auto-set or ask.
-                // Request says: "155" (Just the number).
-                // Let's hide Name field and use Point number as Name? Or keep both?
-                // Request: "155 (Ponto de Rede)" 
-                // Let's keep Name (Label) and Point separate.
+                nameDiv.classList.add('hidden');
+                pointDiv.classList.remove('hidden');
+            } else if (type === 'Ramal') {
                 nameDiv.classList.remove('hidden');
+                labelName.textContent = "Número do Ramal";
+                pointDiv.classList.add('hidden');
             } else {
                 nameDiv.classList.remove('hidden');
+                labelName.textContent = "Nome";
+                pointDiv.classList.remove('hidden');
             }
         }
 
@@ -300,19 +386,18 @@
             if (!currentFloorId) return alert("Selecione um andar!");
 
             const type = document.getElementById('insert-type').value;
-            const name = document.getElementById('insert-name').value;
+            let name = document.getElementById('insert-name').value;
             const point = document.getElementById('insert-point').value;
             const x = parseFloat(document.getElementById('insert-x').value);
             const y = parseFloat(document.getElementById('insert-y').value);
 
-            // Validation
-            if (type === 'Ponto' && !name) {
-                // Auto-fill name with Point Number if empty
-                if (point) document.getElementById('insert-name').value = point;
+            // Logic Fixes
+            if (type === 'Ponto') {
+                name = `Ponto ${point}`;
             }
 
             const payload = {
-                name: document.getElementById('insert-name').value || (type + " " + point),
+                name: name || "Sem Nome",
                 type: type,
                 point_number: point,
                 floor_id: currentFloorId,
@@ -328,39 +413,35 @@
                 });
 
                 if (res.ok) {
-                    toggleInsertMode(); // Reset
-                    fetchNodes(); // Refresh
+                    toggleInsertMode();
+                    fetchNodes();
                 } else {
                     alert('Erro ao salvar no banco.');
                 }
             } catch (err) { console.error(err); alert('Erro de rede.'); }
         });
 
+        async function deleteNode(id) {
+            if (!confirm("Remover este item?")) return;
+            try {
+                await fetch(`/api/nodes/${id}`, { method: 'DELETE' });
+                fetchNodes();
+            } catch (e) { alert("Erro ao deletar"); }
+        }
 
-        // Map Events
         map.on('click', function (e) {
             if (!isInsertMode) return;
-
-            // Show marker preview
             if (insertMarker) map.removeLayer(insertMarker);
             insertMarker = L.circleMarker(e.latlng, { radius: 6, color: 'white' }).addTo(map);
-
-            // Open Modal
-            const modal = document.getElementById('insert-modal');
-            modal.classList.remove('hidden');
-
-            // Set coords (Leaflet Lat(y), Lng(x)) -> DB X(Lng), Y(Lat)
-            // Wait.. usually X is Longitude, Y is Latitude when mapped to Geo.
-            // L.CRS.Simple: [y, x]. 
-            // GeoJSON expects [x, y].
-            // If we use L.latLng: lat is y, lng is x.
+            document.getElementById('insert-modal').classList.remove('hidden');
             document.getElementById('insert-x').value = e.latlng.lng.toFixed(2);
             document.getElementById('insert-y').value = e.latlng.lat.toFixed(2);
-
-            document.getElementById('insert-name').focus();
+            const type = document.getElementById('insert-type').value;
+            if (type === 'Ponto') document.getElementById('insert-point').focus();
+            else document.getElementById('insert-name').focus();
+            handleTypeChange();
         });
 
-        // Other handlers (Delete, Replace, Sidebar) same as before...
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); }
         async function deleteFloor(id) { if (confirm("Confirmar exclusão?")) fetch(`/api/floors/${id}`, { method: 'DELETE' }).then(() => location.reload()); }
         function triggerReplace(id) { floorToReplace = id; document.getElementById('replace-file-input').click(); }

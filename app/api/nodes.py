@@ -45,7 +45,20 @@ def create_node(node: NodeCreate, db: Session = Depends(get_db)):
         geom=wkt
     )
     
+    
     db.add(new_node)
     db.commit()
     db.refresh(new_node)
     return new_node.to_geojson()
+
+from fastapi import HTTPException
+
+@router.delete("/nodes/{node_id}")
+def delete_node(node_id: int, db: Session = Depends(get_db)):
+    node = db.query(NetworkNode).filter(NetworkNode.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    db.delete(node)
+    db.commit()
+    return {"status": "deleted", "id": node_id}
