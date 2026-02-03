@@ -12,11 +12,12 @@ if not os.path.exists(static_dir):
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-from app.api import nodes, diagnostics, floors
+from app.api import nodes, diagnostics, floors, ocs
 
 app.include_router(nodes.router, prefix="/api")
 app.include_router(diagnostics.router, prefix="/api")
 app.include_router(floors.router, prefix="/api")
+app.include_router(ocs.router, prefix="/api")
 
 @app.get("/")
 async def read_root():

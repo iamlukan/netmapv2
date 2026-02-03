@@ -1,0 +1,17 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.database import get_ocs_db
+from app.services import ocs
+
+router = APIRouter()
+
+@router.get("/ocs/machine/{hostname}")
+def get_machine_info(hostname: str, db: Session = Depends(get_ocs_db)):
+    if db is None:
+        raise HTTPException(status_code=503, detail="OCS Database not available")
+    
+    machine = ocs.get_machine_by_name(db, hostname)
+    if not machine:
+        raise HTTPException(status_code=404, detail="Machine not found in OCS")
+    
+    return machine
