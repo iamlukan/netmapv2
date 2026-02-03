@@ -142,13 +142,14 @@
     <header
         class="h-16 bg-catppuccin-mantle border-b border-catppuccin-surface0 flex items-center justify-between px-6 z-30 relative">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-bold text-catppuccin-lavender">Netmap v2</h1>
+            <h1
+                class="text-xl font-bold bg-gradient-to-r from-catppuccin-blue to-catppuccin-lavender bg-clip-text text-transparent">
+                Netmap BandRio</h1>
             <button onclick="toggleSidebar()"
                 class="text-sm bg-catppuccin-surface0 px-3 py-1 rounded hover:bg-catppuccin-surface1">Gerenciar
-                Background</button>
+                Andares</button>
             <button id="btn-insert" onclick="toggleInsertMode()"
-                class="text-sm bg-catppuccin-blue text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inserir
-                Manual</button>
+                class="text-sm bg-catppuccin-blue text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inserir</button>
             <button onclick="toggleRightSidebar()"
                 class="text-sm bg-catppuccin-peach text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inventário
                 Pendente</button>
@@ -185,7 +186,8 @@
         <aside id="sidebar-right"
             class="w-80 bg-catppuccin-mantle border-l border-catppuccin-surface0 hidden flex-col p-4 z-20 absolute h-full transition-transform right-0 top-0 pt-4">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-catppuccin-peach">Inventário Pendente</h2>
+                <h2 class="text-lg font-bold text-catppuccin-peach">Inventário Pendente <span id="inventory-count"
+                        class="text-sm text-catppuccin-text opacity-75"></span></h2>
                 <button onclick="fetchAudit()" class="text-xs text-catppuccin-blue hover:text-white">↻
                     Atualizar</button>
             </div>
@@ -382,6 +384,10 @@
 
                 container.innerHTML = '';
                 const missingInMap = data.missing_in_map || [];
+
+                // Update Count
+                const countEl = document.getElementById('inventory-count');
+                if (countEl) countEl.innerText = `(${missingInMap.length})`;
 
                 if (missingInMap.length === 0) {
                     container.innerHTML = `<div class="text-catppuccin-green text-xs p-2">Tudo sincronizado!</div>`;

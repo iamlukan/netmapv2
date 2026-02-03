@@ -32,7 +32,16 @@ def get_inventory_discrepancies(local_db: Session, ocs_db: Session | None):
                 SELECT h.NAME, a.TAG
                 FROM hardware h
                 LEFT JOIN accountinfo a ON h.ID = a.HARDWARE_ID
-                WHERE (a.TAG IS NULL OR (a.TAG NOT LIKE '%DESATIVADO%' AND a.TAG NOT LIKE '%DESATIVADA%'))
+                WHERE (a.TAG IS NULL OR (a.TAG NOT LIKE '%DESATIVADO%' AND a.TAG NOT LIKE '%DESATIVADA%' AND a.TAG NOT LIKE '%SERVIDORES%'))
+            """)
+
+# ... inside get_node_status_map ...
+
+            query = text("""
+                SELECT h.NAME, h.LASTDATE
+                FROM hardware h
+                LEFT JOIN accountinfo a ON h.ID = a.HARDWARE_ID
+                WHERE (a.TAG IS NULL OR (a.TAG NOT LIKE '%DESATIVADO%' AND a.TAG NOT LIKE '%DESATIVADA%' AND a.TAG NOT LIKE '%SERVIDORES%'))
             """)
             result = ocs_db.execute(query).fetchall()
             
@@ -119,7 +128,7 @@ def get_node_status_map(local_db: Session, ocs_db: Session | None):
                 SELECT h.NAME, h.LASTDATE
                 FROM hardware h
                 LEFT JOIN accountinfo a ON h.ID = a.HARDWARE_ID
-                WHERE (a.TAG IS NULL OR (a.TAG NOT LIKE '%DESATIVADO%' AND a.TAG NOT LIKE '%DESATIVADA%'))
+                WHERE (a.TAG IS NULL OR (a.TAG NOT LIKE '%DESATIVADO%' AND a.TAG NOT LIKE '%DESATIVADA%' AND a.TAG NOT LIKE '%SERVIDORES%'))
             """)
             result = ocs_db.execute(query).fetchall()
             
