@@ -18,7 +18,7 @@ Netmap integrates with **OCS Inventory** to display real-time machine data. This
 1.  **SSH Key**: You need an SSH Private Key (`id_ed25519` or `id_rsa`) authorized on the Gateway.
 2.  **Environment Variables**:
     - `SSH_HOST`: IP of the Jumpbox/Gateway.
-    - `SSH_USER`: SSH Username (e.g., `admband`).
+    - `SSH_USER`: SSH Username (e.g., `user`).
     - `SSH_KEY_PATH`: Local path to your private key.
     - `OCS_DATABASE_URL`: Connection string for the OCS MySQL database.
 
