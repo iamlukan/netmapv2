@@ -189,6 +189,10 @@
                 <button onclick="fetchAudit()" class="text-xs text-catppuccin-blue hover:text-white">↻
                     Atualizar</button>
             </div>
+
+            <input type="text" id="search-ocs" onkeyup="filterOCSList()" placeholder="🔍 Pesquisar Máquina..."
+                class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0 text-sm mb-2 text-catppuccin-text">
+
             <p class="text-xs text-catppuccin-overlay0 mb-4">Arraste para o mapa para posicionar.</p>
             <div id="inventory-list" class="space-y-2 overflow-y-auto flex-grow pb-20">
                 <!-- Items will be injected here -->
