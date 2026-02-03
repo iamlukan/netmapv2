@@ -18,7 +18,19 @@ def get_db():
         db.close()
 
 # OCS Database Connection (Optional/Resilient)
+# OCS Database Connection (Resilient)
+OCS_DB_HOST = os.getenv("OCS_DB_HOST")
 OCS_DATABASE_URL = os.getenv("OCS_DATABASE_URL")
+
+# If Host/User/Pass/Name defined, build URL. Else fall back to full URL string.
+if OCS_DB_HOST:
+    _user = os.getenv("OCS_DB_USER", "ocs")
+    _pass = os.getenv("OCS_DB_PASS", "ocs")
+    _name = os.getenv("OCS_DB_NAME", "ocsweb")
+    _port = os.getenv("OCS_DB_PORT", "3306") # Default MySQL Port
+    
+    OCS_DATABASE_URL = f"mysql+pymysql://{_user}:{_pass}@{OCS_DB_HOST}:{_port}/{_name}"
+
 engine_ocs = None
 SessionOCS = None
 
