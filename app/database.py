@@ -36,10 +36,12 @@ SessionOCS = None
 
 if OCS_DATABASE_URL:
     try:
+        # pool_pre_ping=True helps with SSH tunnel disconnects (Re-connect on stale)
         engine_ocs = create_engine(OCS_DATABASE_URL, pool_pre_ping=True)
         SessionOCS = sessionmaker(autocommit=False, autoflush=False, bind=engine_ocs)
+        print(f"INFO: OCS Engine initialized with URL: {OCS_DATABASE_URL.replace(os.getenv('OCS_DB_PASS', ''), '******')}")
     except Exception as e:
-        print(f"WARNING: Failed to initialize OCS Engine: {e}")
+        print(f"CRITICAL: Failed to initialize OCS Engine. Is the Tunnel (netmap-tunnel) running? Error: {e}")
         engine_ocs = None
 else:
     print("WARNING: OCS_DATABASE_URL not set. OCS features will be disabled.")

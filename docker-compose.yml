@@ -10,6 +10,11 @@ services:
       - ./scripts:/app/scripts
     environment:
       - DATABASE_URL=postgresql://netmap:netmap_password@netmap-db:5432/netmap
+      - OCS_DB_HOST=${OCS_DB_HOST}
+      - OCS_DB_USER=${OCS_DB_USER}
+      - OCS_DB_PASS=${OCS_DB_PASS}
+      - OCS_DB_NAME=${OCS_DB_NAME}
+      - OCS_DB_PORT=${OCS_DB_PORT}
     depends_on:
       - netmap-db
     restart: unless-stopped

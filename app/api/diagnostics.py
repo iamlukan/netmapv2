@@ -31,9 +31,10 @@ def test_db_connections(
         status["ocs"] = "DESATIVADO (Engine não inicializada ou URL não configurada)"
     else:
         try:
-            ocs_db.execute(text("SELECT 1"))
-            status["ocs"] = "OK"
+            # Try a real query to Hardware table (MySQL)
+            result = ocs_db.execute(text("SELECT count(*) FROM hardware")).scalar()
+            status["ocs"] = f"OK (Machines Found: {result})"
         except Exception as e:
-            status["ocs"] = f"ERROR: {str(e)}"
+            status["ocs"] = f"ERROR: Connection Failed. Details: {str(e)}"
 
     return status
