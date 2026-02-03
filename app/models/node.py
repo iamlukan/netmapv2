@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey
 from geoalchemy2 import Geometry
 from app.database import Base
 
@@ -9,7 +9,7 @@ class NetworkNode(Base):
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)  # Máquina, Switch, Ramal
     ip_address = Column(String, nullable=True)
-    floor_id = Column(Integer, nullable=False, default=1)
+    floor_id = Column(Integer, ForeignKey('floors.id'), nullable=False, default=1)
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=True)
 
     def to_geojson(self):
