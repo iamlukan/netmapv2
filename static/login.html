@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Netmap BandRio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        catppuccin: {
+                            base: '#1e1e2e',
+                            mantle: '#181825',
+                            crust: '#11111b',
+                            text: '#cdd6f4',
+                            subtext0: '#a6adc8',
+                            overlay0: '#6c7086',
+                            surface0: '#313244',
+                            surface1: '#45475a',
+                            blue: '#89b4fa',
+                            lavender: '#b4befe',
+                            sapphire: '#74c7ec',
+                            peach: '#fab387',
+                            green: '#a6e3a1',
+                            red: '#f38ba8',
+                            mauve: '#cba6f7'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e2e;
+            color: #cdd6f4;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center h-screen">
+
+    <div class="bg-catppuccin-mantle p-8 rounded-lg shadow-2xl border border-catppuccin-surface0 w-96">
+        <h1 class="text-2xl font-bold text-center mb-6 text-catppuccin-lavender">Netmap BandRio</h1>
+
+        <form id="login-form" class="space-y-4">
+            <div>
+                <label class="block text-sm text-catppuccin-subtext0 mb-1">Username</label>
+                <input type="text" id="username"
+                    class="w-full bg-catppuccin-crust border border-catppuccin-surface0 rounded p-2 text-catppuccin-text focus:border-catppuccin-blue outline-none"
+                    required>
+            </div>
+
+            <div>
+                <label class="block text-sm text-catppuccin-subtext0 mb-1">Password</label>
+                <input type="password" id="password"
+                    class="w-full bg-catppuccin-crust border border-catppuccin-surface0 rounded p-2 text-catppuccin-text focus:border-catppuccin-blue outline-none"
+                    required>
+            </div>
+
+            <div id="error-msg" class="text-catppuccin-red text-xs text-center hidden"></div>
+
+            <button type="submit"
+                class="w-full bg-catppuccin-blue text-catppuccin-crust font-bold py-2 rounded hover:opacity-90 transition-opacity">Login</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error-msg');
+
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('access_token', data.access_token);
+                    localStorage.setItem('user_role', data.role || 'viewer');
+                    window.location.href = '/';
+                } else {
+                    errorDiv.innerText = "Credenciais inválidas.";
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorDiv.innerText = "Erro de conexão.";
+                errorDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+
+</body>
+
+</html>

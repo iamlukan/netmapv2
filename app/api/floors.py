@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db, Base, engine
 from app.models.floor import Floor
 from app.models.node import NetworkNode
+from app.core.deps import get_current_admin_user
 import shutil
 import os
 from PIL import Image
@@ -23,10 +24,11 @@ def get_floors(db: Session = Depends(get_db)):
 
 @router.post("/floors/upload")
 async def upload_floor(
-    file: UploadFile = File(...),
     name: str = Form(...),
     level_order: int = Form(...),
-    db: Session = Depends(get_db)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_admin_user)
 ):
     # Save file
     file_path = os.path.join(STATIC_FLOORS_DIR, file.filename)
@@ -51,7 +53,7 @@ async def upload_floor(
     return new_floor
 
 @router.patch("/floors/{floor_id}")
-def update_floor(floor_id: int, name: str = None, level_order: int = None, db: Session = Depends(get_db)):
+def update_floor(floor_id: int, name: str = None, level_order: int = None, db: Session = Depends(get_db), current_user = Depends(get_current_admin_user)):
     floor = db.query(Floor).filter(Floor.id == floor_id).first()
     if not floor:
         raise HTTPException(status_code=404, detail="Floor not found")

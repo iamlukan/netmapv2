@@ -269,6 +269,13 @@
         let insertMarker = null;
 
         async function init() {
+            // AUTH CHECK
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                window.location.href = '/static/login.html';
+                return;
+            }
+
             await fetchFloors();
             await fetchNodes();
             await fetchStatusMap(); // New call
@@ -492,8 +499,12 @@
 
                 if (type === 'Ponto') {
                     tooltipContent = `P: ${f.properties.point_number || '?'}`;
-                } else if (type === 'Ramal' || type === 'Equipamento') {
+                } else if (type === 'Ramal') {
                     tooltipContent = `${f.properties.name}`;
+                } else if (type === 'Equipamento') {
+                    // Updated: Show Name + Point Number for Equipment
+                    tooltipContent = `<span class="font-bold">${f.properties.name}</span>`;
+                    if (f.properties.point_number) tooltipContent += `<br><span class="opacity-75">P: ${f.properties.point_number}</span>`;
                 } else {
                     // Computer
                     tooltipContent = `<span class="font-bold">${f.properties.name}</span>`;
