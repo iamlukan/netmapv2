@@ -30,7 +30,7 @@ Netmap integrates with **OCS Inventory** to display real-time machine data. This
 2.  **Configure .env**:
     ```ini
     SSH_HOST=192.168.1.100
-    SSH_USER=admband
+    SSH_USER=user
     SSH_KEY_PATH=C:/Users/YourUser/.ssh/id_ed25519
     # The tunnel maps remote 3306 (MySQL) to container 5433 (or similar)
     OCS_DATABASE_URL=mysql+pymysql://ocs_user:ocs_password@netmap-tunnel:5432/ocsweb
