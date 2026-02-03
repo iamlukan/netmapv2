@@ -94,3 +94,79 @@ def get_inventory_discrepancies(local_db: Session, ocs_db: Session | None):
             "missing_in_map": len(missing_in_map)
         }
     }
+
+from datetime import datetime, timedelta
+
+def get_node_status_map(local_db: Session, ocs_db: Session | None):
+    """
+    Returns a dictionary mapping Node IDs to their status color.
+    Green: Online recently (<= 3 days)
+    Gray: Stale (> 3 days)
+    Red: Ghost (Not in OCS)
+    """
+    status_map = {}
+    
+    # 1. Fetch Local Computers
+    local_nodes = local_db.query(NetworkNode).filter(NetworkNode.type == 'Computador').all()
+    
+    # 2. Fetch OCS Data (Name + LastDate)
+    ocs_data = {} # Name -> LastDate (datetime)
+    
+    if ocs_db:
+        try:
+            # We explicitly need LASTDATE from hardware table
+            query = text("""
+                SELECT h.NAME, h.LASTDATE
+                FROM hardware h
+                LEFT JOIN accountinfo a ON h.ID = a.HARDWARE_ID
+                WHERE (a.TAG IS NULL OR (a.TAG NOT LIKE '%DESATIVADO%' AND a.TAG NOT LIKE '%DESATIVADA%'))
+            """)
+            result = ocs_db.execute(query).fetchall()
+            
+            for row in result:
+                name = str(row[0]).upper() if row[0] else ""
+                last_date_raw = row[1]
+                
+                # Parse OCS Date (Format usually: YYYY-MM-DD HH:MM:SS or similar)
+                # If it's already a datetime object (pymysql might convert), good.
+                # If string, parse it.
+                if isinstance(last_date_raw, str):
+                    try:
+                        last_date = datetime.strptime(last_date_raw, "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        try:
+                            last_date = datetime.strptime(last_date_raw, "%Y-%m-%d")
+                        except:
+                            last_date = None
+                elif isinstance(last_date_raw, datetime):
+                    last_date = last_date_raw
+                else:
+                    last_date = None
+                    
+                if name:
+                    ocs_data[name] = last_date
+                    
+        except Exception as e:
+            print(f"ERROR: Status Map OCS Fetch failed: {e}")
+            # Fallback: All Red? Or just return empty?
+            # If OCS is down, everything is effectively "unknown", but "Red" implies "Missing".
+            # Let's verify existing nodes against an empty set -> All Red.
+            pass
+            
+    # 3. Determine Status
+    now = datetime.now()
+    cutoff_active = now - timedelta(days=3)
+    
+    for node in local_nodes:
+        name_upper = node.name.upper()
+        
+        if name_upper in ocs_data:
+            last_seen = ocs_data[name_upper]
+            if last_seen and last_seen >= cutoff_active:
+                status_map[node.id] = "green" # Active
+            else:
+                status_map[node.id] = "gray" # Stale
+        else:
+            status_map[node.id] = "red" # Missing in OCS
+            
+    return status_map

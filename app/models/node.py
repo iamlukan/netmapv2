@@ -27,6 +27,7 @@ class NetworkNode(Base):
 
         return {
             "type": "Feature",
+            "id": self.id,
             "geometry": {
                 "type": "Point",
                 "coordinates": coordinates

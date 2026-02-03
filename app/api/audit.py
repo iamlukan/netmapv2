@@ -28,3 +28,13 @@ def audit_inventory(
         return result
         
     return result
+
+@router.get("/inventory/status")
+def get_inventory_status(
+    local_db: Session = Depends(get_db),
+    ocs_db: Session = Depends(get_ocs_db)
+):
+    """
+    Returns a simple map of NodeID -> Status Color (green, gray, red).
+    """
+    return inventory.get_node_status_map(local_db, ocs_db)

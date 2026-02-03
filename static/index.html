@@ -91,6 +91,16 @@
             color: #f38ba8;
         }
 
+        .nm-tooltip-gray {
+            border-color: #6c7086;
+            color: #6c7086;
+        }
+
+        .nm-tooltip-mauve {
+            border-color: #cba6f7;
+            color: #cba6f7;
+        }
+
         .nm-tooltip-blue {
             border-color: #89b4fa;
             color: #89b4fa;
@@ -255,9 +265,11 @@
         async function init() {
             await fetchFloors();
             await fetchNodes();
-            checkConnection(); // also calls fetchAudit inside checkConnection logic? No, let's call separately
+            await fetchStatusMap(); // New call
+            checkConnection();
             fetchAudit();
             setInterval(checkConnection, 30000);
+            setInterval(fetchStatusMap, 60000); // Poll status every minute
         }
 
         async function fetchFloors() {
@@ -288,6 +300,22 @@
         // DRAG AND DROP LOGIC
         function allowDrop(ev) {
             ev.preventDefault();
+        }
+
+        function filterOCSList() {
+            const input = document.getElementById('search-ocs');
+            const filter = input.value.toUpperCase();
+            const list = document.getElementById("inventory-list");
+            const items = list.getElementsByClassName('draggable-item');
+
+            for (let i = 0; i < items.length; i++) {
+                const txtValue = items[i].innerText || items[i].textContent;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    items[i].style.display = "";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
         }
 
         function drag(ev, name) {
@@ -400,6 +428,19 @@
             }
         }
 
+        // Global status map
+        let nodeStatusMap = {};
+
+        async function fetchStatusMap() {
+            try {
+                const res = await fetch('/api/inventory/status');
+                if (res.ok) {
+                    nodeStatusMap = await res.json();
+                    updateMarkers(); // Refresh colors
+                }
+            } catch (e) { console.error("Status fetch failed", e); }
+        }
+
         function updateMarkers() {
             if (!currentFloorId) return;
             markersLayer.clearLayers();
@@ -407,20 +448,44 @@
 
             visibleNodes.forEach(f => {
                 const [y, x] = f.geometry.coordinates;
-                let colorClass = "nm-tooltip-green";
-                let colorHex = "#a6e3a1";
+                let colorClass = "nm-tooltip-green"; // Default
+                let colorHex = "#a6e3a1"; // Default Green
                 let tooltipContent = "";
+                let type = f.properties.type;
+                let id = f.id;
 
-                if (f.properties.type === 'Ponto') {
+                // Determine Color based on Status Map (Only for Computers)
+                // Updated Logic: Computers get Green/Gray/Red.
+                // Ramal gets Purple (Mauve).
+                if (type === 'Computador') {
+                    const status = nodeStatusMap[id];
+                    if (status === 'red') {
+                        colorClass = "nm-tooltip-red";
+                        colorHex = "#f38ba8";
+                        // Alert Icon for Red Computers
+                        if (!tooltipContent.includes("⚠️")) tooltipContent = "⚠️ " + tooltipContent;
+                    } else if (status === 'gray') {
+                        colorClass = "nm-tooltip-gray";
+                        colorHex = "#6c7086"; // Catppuccin Overlay0
+                    } else {
+                        // Default Green (Active)
+                        colorClass = "nm-tooltip-green";
+                        colorHex = "#a6e3a1";
+                    }
+                } else if (type === 'Ponto') {
                     colorClass = "nm-tooltip-yellow"; colorHex = "#f9e2af";
-                    tooltipContent = `P: ${f.properties.point_number || '?'}`;
-                } else if (f.properties.type === 'Ramal') {
-                    colorClass = "nm-tooltip-red"; colorHex = "#f38ba8";
-                    tooltipContent = `${f.properties.name}`;
-                } else if (f.properties.type === 'Equipamento') {
+                } else if (type === 'Ramal') {
+                    colorClass = "nm-tooltip-mauve"; colorHex = "#cba6f7"; // Changed from Red to Mauve
+                } else if (type === 'Equipamento') {
                     colorClass = "nm-tooltip-blue"; colorHex = "#89b4fa";
+                }
+
+                if (type === 'Ponto') {
+                    tooltipContent = `P: ${f.properties.point_number || '?'}`;
+                } else if (type === 'Ramal' || type === 'Equipamento') {
                     tooltipContent = `${f.properties.name}`;
                 } else {
+                    // Computer
                     tooltipContent = `<span class="font-bold">${f.properties.name}</span>`;
                     if (f.properties.point_number) tooltipContent += `<br><span class="opacity-75">P: ${f.properties.point_number}</span>`;
                 }
@@ -431,6 +496,14 @@
                 const popupDiv = document.createElement('div');
                 popupDiv.className = "flex flex-col gap-2 min-w-[150px]";
                 popupDiv.innerHTML = `<p class="font-bold border-b border-gray-600 pb-1">${f.properties.name}</p>`;
+
+                // Alert Message for Ghost Machines
+                if (type === 'Computador' && nodeStatusMap[id] === 'red') {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = "text-xs bg-red-900/50 text-red-200 p-1 rounded border border-red-500/50 mb-1 flex items-center gap-1";
+                    alertDiv.innerHTML = "<span>⚠️</span> <span>Máquina não inventariada no OCS</span>";
+                    popupDiv.appendChild(alertDiv);
+                }
 
                 // OCS Section
                 const ocsDiv = document.createElement('div');
