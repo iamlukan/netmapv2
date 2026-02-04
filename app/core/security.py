@@ -5,13 +5,10 @@ from passlib.context import CryptContext
 import os
 
 # Secret key logic
+# Secret key logic
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    # Check for production env to be strict
-    if os.getenv("ENV") == "production":
-        raise ValueError("FATAL: SECRET_KEY not set in production!")
-    print("WARNING: SECRET_KEY not set. Using temporary dev key.")
-    SECRET_KEY = "dev_secret_key_change_me_immediately"
+    raise ValueError("FATAL: SECRET_KEY env var not set! Application cannot start without it.")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 

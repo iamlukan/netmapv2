@@ -11,6 +11,7 @@ class NetworkNode(Base):
     ip_address = Column(String, nullable=True)
     point_number = Column(String, nullable=True)
     floor_id = Column(Integer, ForeignKey('floors.id'), nullable=False, default=1)
+    assigned_to = Column(String, nullable=True) # Responsible person (for Ramal/Equipamento)
     geom = Column(Geometry(geometry_type='POINT', srid=4326), nullable=True)
 
     def to_geojson(self):
@@ -38,6 +39,7 @@ class NetworkNode(Base):
                 "type": self.type,
                 "ip_address": self.ip_address,
                 "point_number": self.point_number,
-                "floor_id": self.floor_id
+                "floor_id": self.floor_id,
+                "assigned_to": self.assigned_to
             }
         }

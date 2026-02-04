@@ -242,6 +242,12 @@
                         class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0">
                 </div>
 
+                <div id="field-responsible">
+                    <label class="block text-xs text-catppuccin-overlay0 mb-1">Responsável</label>
+                    <input type="text" id="insert-assigned" placeholder="Nome do Responsável"
+                        class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0">
+                </div>
+
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeInsertModal()"
                         class="px-3 py-1 bg-catppuccin-surface0 rounded hover:bg-catppuccin-surface1">Cancelar</button>
@@ -476,6 +482,8 @@
                             <p class="font-bold text-catppuccin-green">✓ Sincronizado</p>
                             <p>OS: ${data.OSNAME || 'N/A'}</p>
                             <p>IP: ${data.IPADDR || 'N/A'}</p>
+                            <p>CPU: ${data.PROCESSOR || 'N/A'}</p>
+                            <p>RAM: ${data.MEMORY ? data.MEMORY + ' MB' : 'N/A'}</p>
                             <p>User: ${data.USERID || 'N/A'}</p>
                             <p>Last: ${data.LASTDATE || 'N/A'}</p>
                         </div>
@@ -561,6 +569,11 @@
                 popupDiv.className = "flex flex-col gap-2 min-w-[150px]";
                 popupDiv.innerHTML = `<p class="font-bold border-b border-gray-600 pb-1">${f.properties.name}</p>`;
 
+                // Show Responsible for Ramal/Equipamento
+                if (f.properties.assigned_to) {
+                    popupDiv.innerHTML += `<p class="text-[10px] text-catppuccin-overlay0 mt-1">👤 ${f.properties.assigned_to}</p>`;
+                }
+
                 // Alert Message for Ghost Machines
                 if (type === 'Computador' && nodeStatusMap[id] === 'red') {
                     const alertDiv = document.createElement('div');
@@ -599,9 +612,79 @@
         function toggleInsertMode() { closeInsertModal(); isInsertMode = !isInsertMode; document.getElementById('btn-insert').classList.toggle('bg-catppuccin-red', isInsertMode); document.getElementById('map').classList.toggle('cursor-crosshair', isInsertMode); document.getElementById('btn-insert').innerText = isInsertMode ? "Cancelar Inserção" : "Inserir Manual"; }
         function closeInsertModal() { document.getElementById('insert-modal').classList.add('hidden'); if (insertMarker) { map.removeLayer(insertMarker); insertMarker = null; } resetForm(); }
         function resetForm() { document.getElementById('insert-id').value = ''; document.getElementById('insert-form').reset(); document.getElementById('modal-title').innerText = "Inserir Item"; document.getElementById('btn-save-modal').innerText = "Salvar"; }
-        function openEditModal(f) { map.closePopup(); document.getElementById('insert-id').value = f.id; document.getElementById('insert-type').value = f.properties.type; if (f.properties.type === 'Ponto') document.getElementById('insert-point').value = f.properties.point_number; else { document.getElementById('insert-name').value = f.properties.name; document.getElementById('insert-point').value = f.properties.point_number || ''; } const [y, x] = f.geometry.coordinates; document.getElementById('insert-x').value = x; document.getElementById('insert-y').value = y; handleTypeChange(); document.getElementById('modal-title').innerText = "Editar Item"; document.getElementById('btn-save-modal').innerText = "Atualizar"; document.getElementById('insert-modal').classList.remove('hidden'); }
-        function handleTypeChange() { const t = document.getElementById('insert-type').value; const nd = document.getElementById('field-name'); const pd = document.getElementById('field-point'); const ln = document.getElementById('label-name'); if (t === 'Ponto') { nd.classList.add('hidden'); pd.classList.remove('hidden'); } else if (t === 'Ramal') { nd.classList.remove('hidden'); ln.innerText = "Número do Ramal"; pd.classList.add('hidden'); } else { nd.classList.remove('hidden'); ln.innerText = "Nome"; pd.classList.remove('hidden'); } }
-        document.getElementById('insert-form').addEventListener('submit', async e => { e.preventDefault(); if (!currentFloorId) return alert("Selecione um andar!"); const id = document.getElementById('insert-id').value; const t = document.getElementById('insert-type').value; let n = document.getElementById('insert-name').value; const p = document.getElementById('insert-point').value; const x = parseFloat(document.getElementById('insert-x').value); const y = parseFloat(document.getElementById('insert-y').value); if (t === 'Ponto') n = `Ponto ${p}`; const pay = { name: n || "Sem Nome", type: t, point_number: p || null, floor_id: currentFloorId }; let u = '/api/nodes', m = 'POST'; if (id) { u += `/${id}`; m = 'PUT'; } else { pay.x = x; pay.y = y; } await fetchWithAuth(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pay) }); closeInsertModal(); if (isInsertMode) toggleInsertMode(); fetchNodes(); fetchAudit(); });
+        function openEditModal(f) {
+            map.closePopup();
+            document.getElementById('insert-id').value = f.id;
+            document.getElementById('insert-type').value = f.properties.type;
+            if (f.properties.type === 'Ponto') {
+                document.getElementById('insert-point').value = f.properties.point_number;
+            } else {
+                document.getElementById('insert-name').value = f.properties.name;
+                document.getElementById('insert-point').value = f.properties.point_number || '';
+            }
+            document.getElementById('insert-assigned').value = f.properties.assigned_to || '';
+            const [y, x] = f.geometry.coordinates;
+            document.getElementById('insert-x').value = x;
+            document.getElementById('insert-y').value = y;
+            handleTypeChange();
+            document.getElementById('modal-title').innerText = "Editar Item";
+            document.getElementById('btn-save-modal').innerText = "Atualizar";
+            document.getElementById('insert-modal').classList.remove('hidden');
+        }
+        function handleTypeChange() {
+            const t = document.getElementById('insert-type').value;
+            const nd = document.getElementById('field-name');
+            const pd = document.getElementById('field-point');
+            const ln = document.getElementById('label-name');
+            const rd = document.getElementById('field-responsible');
+
+            // Logic for fields visibility
+            // Responsible: Show for Ramal and Equipamento
+            if (t === 'Ramal' || t === 'Equipamento') {
+                rd.classList.remove('hidden');
+            } else {
+                rd.classList.add('hidden');
+            }
+
+            if (t === 'Ponto') {
+                nd.classList.add('hidden');
+                pd.classList.remove('hidden');
+            } else if (t === 'Ramal') {
+                nd.classList.remove('hidden');
+                ln.innerText = "Número do Ramal";
+                pd.classList.add('hidden');
+            } else {
+                nd.classList.remove('hidden');
+                ln.innerText = "Nome";
+                pd.classList.remove('hidden');
+            }
+        }
+        document.getElementById('insert-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!currentFloorId) return alert("Selecione um andar!");
+            const id = document.getElementById('insert-id').value;
+            const t = document.getElementById('insert-type').value;
+            let n = document.getElementById('insert-name').value;
+            const p = document.getElementById('insert-point').value;
+            const a = document.getElementById('insert-assigned').value;
+            const x = parseFloat(document.getElementById('insert-x').value);
+            const y = parseFloat(document.getElementById('insert-y').value);
+            if (t === 'Ponto') n = `Ponto ${p}`;
+            const pay = {
+                name: n || "Sem Nome",
+                type: t,
+                point_number: p || null,
+                assigned_to: a || null,
+                floor_id: currentFloorId
+            };
+            let u = '/api/nodes', m = 'POST';
+            if (id) { u += `/${id}`; m = 'PUT'; } else { pay.x = x; pay.y = y; }
+            await fetchWithAuth(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pay) });
+            closeInsertModal();
+            if (isInsertMode) toggleInsertMode();
+            fetchNodes();
+            fetchAudit();
+        });
         async function deleteNode(id) { if (confirm("Remover?")) { await fetchWithAuth(`/api/nodes/${id}`, { method: 'DELETE' }); fetchNodes(); fetchAudit(); } }
         map.on('click', e => { if (!isInsertMode) return; resetForm(); if (insertMarker) map.removeLayer(insertMarker); insertMarker = L.circleMarker(e.latlng, { radius: 6, color: 'white' }).addTo(map); document.getElementById('insert-modal').classList.remove('hidden'); document.getElementById('insert-x').value = e.latlng.lng.toFixed(2); document.getElementById('insert-y').value = e.latlng.lat.toFixed(2); handleTypeChange(); });
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); document.getElementById('sidebar').classList.toggle('flex'); }
