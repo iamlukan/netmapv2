@@ -165,6 +165,9 @@
             <button id="btn-inventory" onclick="toggleRightSidebar()"
                 class="text-sm bg-catppuccin-peach text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inventário
                 Pendente</button>
+            <button onclick="window.open('/api/export/excel', '_blank')"
+                class="text-sm bg-catppuccin-green text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">
+                Excel</button>
             <button id="btn-users" onclick="openUserModal()"
                 class="hidden text-sm bg-catppuccin-mauve text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">
                 Usuários</button>
@@ -251,52 +254,7 @@
                         class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0">
                 </div>
 
-                <!-- User Mgmt Modal -->
-                <div id="user-modal"
-                    class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-catppuccin-mantle border border-catppuccin-surface0 p-6 rounded shadow-xl z-40 w-96 max-h-[80vh] flex flex-col">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold text-catppuccin-mauve">Gestão de Usuários</h3>
-                        <button onclick="document.getElementById('user-modal').classList.add('hidden')"
-                            class="text-catppuccin-red hover:text-white">✕</button>
-                    </div>
 
-                    <form id="create-user-form"
-                        class="space-y-2 mb-4 p-3 bg-catppuccin-surface0 rounded border border-catppuccin-surface1">
-                        <h4 class="text-xs font-bold text-catppuccin-text mb-2">Novo Usuário</h4>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="new-username" placeholder="Login" required
-                                class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
-                            <input type="password" id="new-password" placeholder="Senha" required
-                                class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="new-fullname" placeholder="Nome Completo"
-                                class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
-                            <select id="new-role"
-                                class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none">
-                                <option value="viewer">Viewer (Leitura)</option>
-                                <option value="admin">Admin (Total)</option>
-                            </select>
-                        </div>
-                        <button type="submit"
-                            class="w-full bg-catppuccin-mauve text-catppuccin-crust font-bold py-1.5 rounded text-xs hover:opacity-90">Criar
-                            Usuário</button>
-                    </form>
-
-                    <div
-                        class="flex-grow overflow-y-auto bg-catppuccin-crust rounded border border-catppuccin-surface0 p-1">
-                        <table class="w-full text-xs text-left">
-                            <thead class="text-catppuccin-overlay0 border-b border-catppuccin-surface0">
-                                <tr>
-                                    <th class="p-2">User</th>
-                                    <th class="p-2">Nome</th>
-                                    <th class="p-2">Role</th>
-                                </tr>
-                            </thead>
-                            <tbody id="user-list-body" class="text-catppuccin-text"></tbody>
-                        </table>
-                    </div>
-                </div>
 
                 <div id="field-point">
                     <label class="block text-xs text-catppuccin-overlay0 mb-1">Ponto de Rede</label>
@@ -317,6 +275,100 @@
                         class="px-3 py-1 bg-catppuccin-blue text-catppuccin-crust font-bold rounded hover:opacity-90">Salvar</button>
                 </div>
             </form>
+        </div>
+
+
+        <!-- User Mgmt Modal -->
+        <div id="user-modal"
+            class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-catppuccin-mantle border border-catppuccin-surface0 p-6 rounded shadow-xl z-40 w-96 max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-catppuccin-mauve">Gestão de Usuários</h3>
+                <button onclick="document.getElementById('user-modal').classList.add('hidden')"
+                    class="text-catppuccin-red hover:text-white">✕</button>
+            </div>
+
+            <form id="create-user-form"
+                class="space-y-2 mb-4 p-3 bg-catppuccin-surface0 rounded border border-catppuccin-surface1">
+                <h4 class="text-xs font-bold text-catppuccin-text mb-2">Novo Usuário</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="new-username" placeholder="Login" required
+                        class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
+                    <input type="password" id="new-password" placeholder="Senha" required
+                        class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="new-fullname" placeholder="Nome Completo"
+                        class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
+                    <select id="new-role"
+                        class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none">
+                        <option value="viewer">Viewer (Leitura)</option>
+                        <option value="admin">Admin (Total)</option>
+                    </select>
+                </div>
+                <button type="submit"
+                    class="w-full bg-catppuccin-mauve text-catppuccin-crust font-bold py-1.5 rounded text-xs hover:opacity-90">Criar
+                    Usuário</button>
+            </form>
+
+            <div class="flex-grow overflow-y-auto bg-catppuccin-crust rounded border border-catppuccin-surface0 p-1">
+                <table class="w-full text-xs text-left">
+                    <thead class="text-catppuccin-overlay0 border-b border-catppuccin-surface0">
+                        <tr>
+                            <th class="p-2">User</th>
+                            <th class="p-2">Nome</th>
+                            <th class="p-2">Role</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-list-body" class="text-catppuccin-text"></tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <!-- User Mgmt Modal -->
+        <div id="user-modal"
+            class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-catppuccin-mantle border border-catppuccin-surface0 p-6 rounded shadow-xl z-40 w-96 max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-catppuccin-mauve">Gestão de Usuários</h3>
+                <button onclick="document.getElementById('user-modal').classList.add('hidden')"
+                    class="text-catppuccin-red hover:text-white">✕</button>
+            </div>
+
+            <form id="create-user-form"
+                class="space-y-2 mb-4 p-3 bg-catppuccin-surface0 rounded border border-catppuccin-surface1">
+                <h4 class="text-xs font-bold text-catppuccin-text mb-2">Novo Usuário</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="new-username" placeholder="Login" required
+                        class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
+                    <input type="password" id="new-password" placeholder="Senha" required
+                        class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="new-fullname" placeholder="Nome Completo"
+                        class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
+                    <select id="new-role"
+                        class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none">
+                        <option value="viewer">Viewer (Leitura)</option>
+                        <option value="admin">Admin (Total)</option>
+                    </select>
+                </div>
+                <button type="submit"
+                    class="w-full bg-catppuccin-mauve text-catppuccin-crust font-bold py-1.5 rounded text-xs hover:opacity-90">Criar
+                    Usuário</button>
+            </form>
+
+            <div class="flex-grow overflow-y-auto bg-catppuccin-crust rounded border border-catppuccin-surface0 p-1">
+                <table class="w-full text-xs text-left">
+                    <thead class="text-catppuccin-overlay0 border-b border-catppuccin-surface0">
+                        <tr>
+                            <th class="p-2">User</th>
+                            <th class="p-2">Nome</th>
+                            <th class="p-2">Role</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-list-body" class="text-catppuccin-text"></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- Map -->
@@ -405,6 +457,13 @@
             try {
                 const res = await fetchWithAuth('/api/floors');
                 floorsData = await res.json();
+
+                if (floorsData.length === 0) {
+                    // No Floors Warning
+                    alert("Bem-vindo! Nenhum andar encontrado.\nClique em 'Gerenciar Andares' para começar.");
+                    toggleSidebar();
+                }
+
                 layerControl.remove();
                 const newControl = L.control.layers(null, null, { collapsed: false, position: 'topright' }).addTo(map);
                 const sidebarList = document.getElementById('floor-list');
@@ -647,7 +706,11 @@
 
                 // Show Responsible for Ramal/Equipamento
                 if (f.properties.assigned_to) {
-                    popupDiv.innerHTML += `<p class="text-[10px] text-catppuccin-overlay0 mt-1">👤 ${f.properties.assigned_to}</p>`;
+                    if (type === 'Ramal') {
+                        popupDiv.innerHTML += `<p class="text-sm font-bold text-catppuccin-peach mt-1">👤 ${f.properties.assigned_to}</p>`;
+                    } else {
+                        popupDiv.innerHTML += `<p class="text-[10px] text-catppuccin-overlay0 mt-1">👤 ${f.properties.assigned_to}</p>`;
+                    }
                 }
 
                 // Alert Message for Ghost Machines
