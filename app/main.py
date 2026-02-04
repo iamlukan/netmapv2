@@ -5,6 +5,12 @@ import os
 
 app = FastAPI(title="Netmap v2")
 
+# Database Initialization (Centralized)
+from app.database import engine, Base
+# Import all models to ensure they are registered with Base.metadata
+from app.models import user, floor, node
+Base.metadata.create_all(bind=engine)
+
 # Mount static files
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 if not os.path.exists(static_dir):

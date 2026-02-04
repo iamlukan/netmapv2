@@ -10,10 +10,12 @@ def get_machine_by_name(db: Session, name: str) -> Optional[dict]:
         return None
 
     # OCS table 'hardware' usually contains: ID, NAME, WORKGROUP, OSNAME, IPADDR, LASTDATE/LASTCOME
+    # We join with 'bios' to get the Model (SMODEL)
     query = text("""
-        SELECT NAME, OSNAME, IPADDR, LASTDATE, USERID, MEMORY
-        FROM hardware
-        WHERE NAME = :name
+        SELECT h.NAME, h.OSNAME, h.IPADDR, h.LASTDATE, h.USERID, h.MEMORY, h.PROCESSORT as PROCESSOR, b.SMODEL as MODEL
+        FROM hardware h
+        LEFT JOIN bios b ON h.ID = b.HARDWARE_ID
+        WHERE h.NAME = :name
         LIMIT 1
     """)
     

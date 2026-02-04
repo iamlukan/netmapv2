@@ -15,8 +15,7 @@ STATIC_FLOORS_DIR = os.path.join("static", "assets", "floors")
 if not os.path.exists(STATIC_FLOORS_DIR):
     os.makedirs(STATIC_FLOORS_DIR)
 
-# Init table
-Base.metadata.create_all(bind=engine)
+# Tables initialized in main.py
 
 @router.get("/floors")
 def get_floors(db: Session = Depends(get_db)):

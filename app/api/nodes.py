@@ -5,8 +5,7 @@ from app.models.node import NetworkNode
 
 router = APIRouter()
 
-# Simple init of tables if they don't exist (replaces Alembic for now)
-Base.metadata.create_all(bind=engine)
+# Tables initialized in main.py
 
 @router.get("/nodes")
 def get_nodes(db: Session = Depends(get_db)):

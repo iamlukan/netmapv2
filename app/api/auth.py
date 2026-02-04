@@ -6,8 +6,7 @@ from app.database import get_db, Base, engine
 from app.models.user import User
 from app.core.security import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
-# Ensure table exists
-Base.metadata.create_all(bind=engine)
+# Tables initialized in main.py
 
 router = APIRouter()
 

@@ -29,29 +29,30 @@ def get_inventory_discrepancies(local_db: Session, ocs_db: Session | None):
             # Query: Name and Tag from joined tables
             # accountinfo might be named 'accountinfo' or similar, usually standard OCS is 'accountinfo'
             query = text("""
-                SELECT h.NAME, a.TAG
+                SELECT h.NAME, a.TAG, h.MEMORY, h.PROCESSORT, b.SMODEL, h.IPADDR, h.USERID, h.OSNAME
                 FROM hardware h
                 LEFT JOIN accountinfo a ON h.ID = a.HARDWARE_ID
-                WHERE (a.TAG IS NULL OR (a.TAG NOT LIKE '%DESATIVADO%' AND a.TAG NOT LIKE '%DESATIVADA%' AND a.TAG NOT LIKE '%SERVIDORES%'))
-            """)
-
-# ... inside get_node_status_map ...
-
-            query = text("""
-                SELECT h.NAME, h.LASTDATE
-                FROM hardware h
-                LEFT JOIN accountinfo a ON h.ID = a.HARDWARE_ID
+                LEFT JOIN bios b ON h.ID = b.HARDWARE_ID
                 WHERE (a.TAG IS NULL OR (a.TAG NOT LIKE '%DESATIVADO%' AND a.TAG NOT LIKE '%DESATIVADA%' AND a.TAG NOT LIKE '%SERVIDORES%'))
             """)
             result = ocs_db.execute(query).fetchall()
             
             for row in result:
-                # row is (NAME, TAG)
+                # row is (NAME, TAG, MEMORY, PROCESSORT, SMODEL, IPADDR, USERID, OSNAME)
                 name = str(row[0]).upper() if row[0] else ""
                 
                 if name:
                     ocs_names.add(name)
-                    ocs_data.append({"name": name, "tag": row[1]})
+                    ocs_data.append({
+                        "name": name, 
+                        "tag": row[1],
+                        "memory": row[2],
+                        "processor": row[3],
+                        "model": row[4],
+                        "ip": row[5],
+                        "user": row[6],
+                        "os": row[7]
+                    })
                     
         except Exception as e:
             print(f"ERROR: Failed to fetch OCS Inventory: {e}")
@@ -85,7 +86,13 @@ def get_inventory_discrepancies(local_db: Session, ocs_db: Session | None):
         if name not in local_names:
             missing_in_map.append({
                 "name": name,
-                "tag": ocs_machine["tag"]
+                "tag": ocs_machine["tag"],
+                "model": ocs_machine.get("model"),
+                "processor": ocs_machine.get("processor"),
+                "memory": ocs_machine.get("memory"),
+                "ip": ocs_machine.get("ip"),
+                "user": ocs_machine.get("user"),
+                "os": ocs_machine.get("os")
             })
             
     # Sort for UI niceness

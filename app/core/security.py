@@ -10,8 +10,8 @@ if not SECRET_KEY:
     # Check for production env to be strict
     if os.getenv("ENV") == "production":
         raise ValueError("FATAL: SECRET_KEY not set in production!")
-    SECRET_KEY = "netmap_super_secret_key_change_me"
-    print("WARNING: Using default insecure SECRET_KEY.")
+    print("WARNING: SECRET_KEY not set. Using temporary dev key.")
+    SECRET_KEY = "dev_secret_key_change_me_immediately"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 

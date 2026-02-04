@@ -21,6 +21,7 @@ Netmap integrates with **OCS Inventory** to display real-time machine data. This
     - `SSH_USER`: SSH Username (e.g., `user`).
     - `SSH_KEY_PATH`: Local path to your private key.
     - `OCS_DATABASE_URL`: Connection string for the OCS MySQL database.
+    - `SECRET_KEY`: **REQUIRED** in Production. Arbitrary secret string for JWT signing.
 
 ### Setup Guide
 
@@ -32,15 +33,22 @@ Netmap integrates with **OCS Inventory** to display real-time machine data. This
     SSH_HOST=192.168.1.100
     SSH_USER=user
     SSH_KEY_PATH=C:/Users/YourUser/.ssh/id_ed25519
-    # The tunnel maps remote 3306 (MySQL) to container 5433 (or similar)
-    OCS_DATABASE_URL=mysql+pymysql://ocs_user:ocs_password@netmap-tunnel:5432/ocsweb
+    OCS_DATABASE_URL=mysql+pymysql://ocs_user:ocs_password@netmap-tunnel:3306/ocsweb
+    SECRET_KEY=super_secure_random_string_here
     ```
-    *Note: The `netmap-tunnel` service in docker-compose handles the port forwarding.*
+    *Note: The `netmap-tunnel` service exposes port 3306 internally.*
 
 3.  **Start Services**:
     ```bash
     docker-compose up -d --build
     ```
+
+4.  **Seed Database (First Run)**:
+    Initialize the admin user:
+    ```bash
+    docker-compose exec app python scripts/seed_admin.py
+    ```
+    *Creates user: admin / admin123*
 
 4.  **Verify Connection**:
     - Check the tunnel logs: `docker logs netmap-tunnel`.

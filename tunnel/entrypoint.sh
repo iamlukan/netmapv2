@@ -32,3 +32,7 @@ exec ssh -o StrictHostKeyChecking=no \
     -i /root/.ssh/id_ed25519 \
     -L 0.0.0.0:3306:127.0.0.1:3306 \
     ${SSH_USER}@${SSH_HOST}
+
+# NOTE: We forward 3306 (MySQL default) specifically for OCS Inventory.
+# This avoids any confusion with PostgreSQL which runs on 5432.
+# Container 3306 -> Remote Localhost 3306.
