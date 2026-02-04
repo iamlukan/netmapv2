@@ -90,7 +90,7 @@
                 if (res.ok) {
                     const data = await res.json();
                     localStorage.setItem('access_token', data.access_token);
-                    localStorage.setItem('user_role', data.role || 'viewer');
+                    localStorage.setItem('role', data.role || 'viewer');
                     window.location.href = '/';
                 } else {
                     errorDiv.innerText = "Credenciais inválidas.";
