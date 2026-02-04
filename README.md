@@ -6,17 +6,17 @@ Netmap is an advanced Indoor Mapping and Infrastructure Management system design
 
 ```mermaid
 graph TD
-    User[User / Browser] -->|HTTP 8000| App[FastAPI App]
-    App -->|SQLAlchemy| DB[PostgreSQL + PostGIS]
-    App -->|SSH Tunnel :3306| OCS[OCS Inventory DB (Remote)]
+    User["User / Browser"] -->|HTTP 8000| App["FastAPI App"]
+    App -->|SQLAlchemy| DB["PostgreSQL + PostGIS"]
+    App -->|SSH Tunnel :3306| OCS["OCS Inventory DB (Remote)"]
     
     subgraph Docker Network
         App
         DB
-        Tunnel[SSH Tunnel Container]
+        Tunnel["SSH Tunnel Container"]
     end
     
-    Tunnel -->|SSH| Jumpbox[Gateway Server]
+    Tunnel -->|SSH| Jumpbox["Gateway Server"]
     Jumpbox -->|MySQL| OCS
 ```
 
