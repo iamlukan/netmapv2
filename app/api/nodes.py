@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from app.database import get_db, Base, engine
 from app.models.node import NetworkNode
 
@@ -17,6 +18,20 @@ def get_nodes(db: Session = Depends(get_db)):
         "type": "FeatureCollection",
         "features": features
     }
+
+@router.get("/search")
+def search_nodes(q: str, db: Session = Depends(get_db)):
+    if not q:
+        return []
+    term = f"%{q}%"
+    nodes = db.query(NetworkNode).filter(
+        or_(
+            NetworkNode.name.ilike(term),
+            NetworkNode.assigned_to.ilike(term),
+            NetworkNode.point_number.ilike(term)
+        )
+    ).limit(30).all()
+    return [node.to_geojson() for node in nodes]
 
 from pydantic import BaseModel
 

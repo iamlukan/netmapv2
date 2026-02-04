@@ -145,14 +145,29 @@
             <h1
                 class="text-xl font-bold bg-gradient-to-r from-catppuccin-blue to-catppuccin-lavender bg-clip-text text-transparent">
                 Netmap BandRio</h1>
-            <button onclick="toggleSidebar()"
+
+            <!-- Global Search -->
+            <div class="relative ml-4">
+                <input type="text" id="global-search" autocomplete="off" placeholder="🔍 Pesquisar em todo o mapa..."
+                    class="bg-catppuccin-surface0 text-sm text-catppuccin-text px-3 py-1 rounded w-80 border border-catppuccin-surface1 focus:border-catppuccin-blue outline-none placeholder-catppuccin-overlay0 transition-all focus:w-96">
+                <div id="search-results"
+                    class="absolute top-9 left-0 w-full bg-catppuccin-mantle border border-catppuccin-surface0 rounded shadow-xl hidden max-h-80 overflow-y-auto z-50">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button id="btn-floors" onclick="toggleSidebar()"
                 class="text-sm bg-catppuccin-surface0 px-3 py-1 rounded hover:bg-catppuccin-surface1">Gerenciar
                 Andares</button>
             <button id="btn-insert" onclick="toggleInsertMode()"
                 class="text-sm bg-catppuccin-blue text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inserir</button>
-            <button onclick="toggleRightSidebar()"
+            <button id="btn-inventory" onclick="toggleRightSidebar()"
                 class="text-sm bg-catppuccin-peach text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inventário
                 Pendente</button>
+            <button id="btn-users" onclick="openUserModal()"
+                class="hidden text-sm bg-catppuccin-mauve text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">
+                Usuários</button>
             <button onclick="logout()"
                 class="text-sm border border-catppuccin-red text-catppuccin-red px-3 py-1 rounded hover:bg-catppuccin-red hover:text-catppuccin-crust transition-colors">
                 Sair
@@ -236,6 +251,53 @@
                         class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0">
                 </div>
 
+                <!-- User Mgmt Modal -->
+                <div id="user-modal"
+                    class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-catppuccin-mantle border border-catppuccin-surface0 p-6 rounded shadow-xl z-40 w-96 max-h-[80vh] flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-catppuccin-mauve">Gestão de Usuários</h3>
+                        <button onclick="document.getElementById('user-modal').classList.add('hidden')"
+                            class="text-catppuccin-red hover:text-white">✕</button>
+                    </div>
+
+                    <form id="create-user-form"
+                        class="space-y-2 mb-4 p-3 bg-catppuccin-surface0 rounded border border-catppuccin-surface1">
+                        <h4 class="text-xs font-bold text-catppuccin-text mb-2">Novo Usuário</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="new-username" placeholder="Login" required
+                                class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
+                            <input type="password" id="new-password" placeholder="Senha" required
+                                class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="new-fullname" placeholder="Nome Completo"
+                                class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none focus:border-catppuccin-mauve">
+                            <select id="new-role"
+                                class="bg-catppuccin-crust p-1.5 rounded text-xs border border-catppuccin-surface1 w-full text-catppuccin-text outline-none">
+                                <option value="viewer">Viewer (Leitura)</option>
+                                <option value="admin">Admin (Total)</option>
+                            </select>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-catppuccin-mauve text-catppuccin-crust font-bold py-1.5 rounded text-xs hover:opacity-90">Criar
+                            Usuário</button>
+                    </form>
+
+                    <div
+                        class="flex-grow overflow-y-auto bg-catppuccin-crust rounded border border-catppuccin-surface0 p-1">
+                        <table class="w-full text-xs text-left">
+                            <thead class="text-catppuccin-overlay0 border-b border-catppuccin-surface0">
+                                <tr>
+                                    <th class="p-2">User</th>
+                                    <th class="p-2">Nome</th>
+                                    <th class="p-2">Role</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-list-body" class="text-catppuccin-text"></tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div id="field-point">
                     <label class="block text-xs text-catppuccin-overlay0 mb-1">Ponto de Rede</label>
                     <input type="text" id="insert-point" placeholder="Ex: 160"
@@ -287,8 +349,17 @@
             }
 
             // Setup Header with User Info & Logout
-            const role = localStorage.getItem('role') || 'User';
-            // Insert Logout button if not present (handled effectively by static HTML update, but let's ensure logic works)
+            const role = localStorage.getItem('role') || 'viewer';
+
+            // PERMISSIONS
+            if (role === 'admin') {
+                document.getElementById('btn-users').classList.remove('hidden');
+            } else {
+                // Viewer -> Hide management buttons
+                document.getElementById('btn-floors').classList.add('hidden');
+                document.getElementById('btn-insert').classList.add('hidden');
+                document.getElementById('btn-inventory').classList.add('hidden');
+            }
 
             await fetchFloors();
             await fetchNodes();
@@ -328,6 +399,8 @@
             window.location.href = '/static/login.html';
         }
 
+        let floorLayers = {};
+
         async function fetchFloors() {
             try {
                 const res = await fetchWithAuth('/api/floors');
@@ -336,9 +409,11 @@
                 const newControl = L.control.layers(null, null, { collapsed: false, position: 'topright' }).addTo(map);
                 const sidebarList = document.getElementById('floor-list');
                 sidebarList.innerHTML = '';
+                floorLayers = {};
                 floorsData.forEach((floor, index) => {
                     const bounds = [[0, 0], [floor.height, floor.width]];
                     const layer = L.imageOverlay(floor.image_path, bounds);
+                    floorLayers[floor.id] = layer;
                     newControl.addBaseLayer(layer, floor.name);
                     const item = document.createElement('div');
                     item.className = "flex justify-between items-center bg-catppuccin-surface0 p-2 rounded text-sm";
@@ -563,6 +638,7 @@
                 }
 
                 const marker = L.circleMarker([x, y], { radius: 4, fillColor: colorHex, color: "#11111b", weight: 1, fillOpacity: 0.9 }).addTo(markersLayer);
+                marker.nodeId = id; // Store ID for search
                 marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: `nm-tooltip ${colorClass}`, offset: [0, -4] });
 
                 const popupDiv = document.createElement('div');
@@ -587,18 +663,21 @@
                 ocsDiv.id = `ocs-${f.id}`;
                 popupDiv.appendChild(ocsDiv);
 
-                const editBtn = document.createElement('button');
-                editBtn.className = "text-xs text-catppuccin-blue hover:text-white w-full text-left mt-1";
-                editBtn.innerText = "✏️ Editar Item";
-                editBtn.onclick = () => openEditModal(f);
+                const role = localStorage.getItem('role');
+                if (role === 'admin') {
+                    const editBtn = document.createElement('button');
+                    editBtn.className = "text-xs text-catppuccin-blue hover:text-white w-full text-left mt-1";
+                    editBtn.innerText = "✏️ Editar Item";
+                    editBtn.onclick = () => openEditModal(f);
 
-                const delBtn = document.createElement('button');
-                delBtn.className = "text-xs text-red-400 hover:text-red-300 w-full text-left";
-                delBtn.innerText = "🗑️ Remover Item";
-                delBtn.onclick = () => deleteNode(f.id);
+                    const delBtn = document.createElement('button');
+                    delBtn.className = "text-xs text-red-400 hover:text-red-300 w-full text-left";
+                    delBtn.innerText = "🗑️ Remover Item";
+                    delBtn.onclick = () => deleteNode(f.id);
 
-                popupDiv.appendChild(editBtn);
-                popupDiv.appendChild(delBtn);
+                    popupDiv.appendChild(editBtn);
+                    popupDiv.appendChild(delBtn);
+                }
 
                 marker.bindPopup(popupDiv);
 
@@ -608,6 +687,139 @@
                 });
             });
         }
+
+        // Search Logic
+        let searchTimeout = null;
+        function debounceSearch() {
+            const q = document.getElementById('global-search').value;
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => searchNodes(q), 300);
+        }
+
+        async function searchNodes(q) {
+            const resContainer = document.getElementById('search-results');
+            if (!q || q.length < 2) {
+                resContainer.classList.add('hidden');
+                return;
+            }
+            try {
+                const res = await fetchWithAuth(`/api/search?q=${encodeURIComponent(q)}`);
+                const items = await res.json();
+                renderSearchResults(items);
+            } catch (e) { console.error(e); }
+        }
+
+        function renderSearchResults(items) {
+            const resContainer = document.getElementById('search-results');
+            resContainer.innerHTML = '';
+            if (items.length === 0) {
+                resContainer.innerHTML = '<div class="p-2 text-xs text-catppuccin-overlay0">Nenhum resultado.</div>';
+            } else {
+                items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = "p-2 border-b border-catppuccin-surface0 hover:bg-catppuccin-surface0 cursor-pointer text-xs flex justify-between group";
+                    div.onclick = () => goToNode(item);
+                    div.innerHTML = `
+                        <div>
+                            <div class="font-bold text-catppuccin-text group-hover:text-catppuccin-blue">${item.properties.name}</div>
+                            <div class="text-[10px] text-catppuccin-overlay0">${item.properties.assigned_to ? '👤 ' + item.properties.assigned_to : 'Sem dono'}</div>
+                        </div>
+                        <div class="text-catppuccin-overlay0 text-[10px] self-end">Lvl ${item.properties.floor_id}</div>
+                     `;
+                    resContainer.appendChild(div);
+                });
+            }
+            resContainer.classList.remove('hidden');
+        }
+
+        window.onclick = function (e) {
+            const comp = document.getElementById('search-results');
+            const input = document.getElementById('global-search');
+            if (comp && e.target !== comp && e.target !== input && !comp.contains(e.target)) {
+                comp.classList.add('hidden');
+            }
+        }
+
+        async function goToNode(item) {
+            document.getElementById('search-results').classList.add('hidden');
+            const targetId = item.id;
+            const targetFloor = item.properties.floor_id;
+
+            if (currentFloorId !== targetFloor) {
+                if (currentFloorId && floorLayers[currentFloorId]) {
+                    map.removeLayer(floorLayers[currentFloorId]);
+                }
+                currentFloorId = targetFloor;
+                const newLayer = floorLayers[currentFloorId];
+                if (newLayer) {
+                    newLayer.addTo(map);
+                    const f = floorsData.find(x => x.id === currentFloorId);
+                    if (f) {
+                        map.setMaxBounds([[0, 0], [f.height, f.width]]);
+                        map.fitBounds([[0, 0], [f.height, f.width]]);
+                    }
+                }
+                updateMarkers();
+            }
+
+            const [y, x] = item.geometry.coordinates;
+            map.flyTo([x, y], 1, { duration: 1.5 });
+
+            setTimeout(() => {
+                markersLayer.eachLayer(layer => {
+                    if (layer.nodeId === targetId) {
+                        layer.openPopup();
+                    }
+                });
+            }, 1600);
+        }
+
+        // User Management Logic
+        function openUserModal() {
+            document.getElementById('user-modal').classList.remove('hidden');
+            fetchUsersList();
+        }
+
+        async function fetchUsersList() {
+            const tbody = document.getElementById('user-list-body');
+            tbody.innerHTML = '<tr><td colspan="3" class="p-2 text-center text-catppuccin-overlay0">Carregando...</td></tr>';
+            try {
+                const res = await fetchWithAuth('/api/users');
+                if (res.ok) {
+                    const users = await res.json();
+                    tbody.innerHTML = '';
+                    users.forEach(u => {
+                        const tr = document.createElement('tr');
+                        tr.className = "border-b border-catppuccin-surface0 hover:bg-catppuccin-surface0";
+                        tr.innerHTML = `<td class="p-2 font-bold">${u.username}</td><td class="p-2">${u.full_name || '-'}</td><td class="p-2"><span class="${u.role === 'admin' ? 'text-catppuccin-red border border-catppuccin-red px-1 rounded text-[10px]' : 'text-catppuccin-blue border border-catppuccin-blue px-1 rounded text-[10px]'}">${u.role.toUpperCase()}</span></td>`;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        document.getElementById('create-user-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const u = document.getElementById('new-username').value;
+            const p = document.getElementById('new-password').value;
+            const f = document.getElementById('new-fullname').value;
+            const r = document.getElementById('new-role').value;
+
+            try {
+                const res = await fetchWithAuth('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p, role: r, full_name: f })
+                });
+                if (res.ok) {
+                    document.getElementById('create-user-form').reset();
+                    fetchUsersList();
+                } else {
+                    const err = await res.json();
+                    alert("Erro: " + (err.detail || "Falha ao criar"));
+                }
+            } catch (e) { alert("Erro conexão"); }
+        });
 
         function toggleInsertMode() { closeInsertModal(); isInsertMode = !isInsertMode; document.getElementById('btn-insert').classList.toggle('bg-catppuccin-red', isInsertMode); document.getElementById('map').classList.toggle('cursor-crosshair', isInsertMode); document.getElementById('btn-insert').innerText = isInsertMode ? "Cancelar Inserção" : "Inserir Manual"; }
         function closeInsertModal() { document.getElementById('insert-modal').classList.add('hidden'); if (insertMarker) { map.removeLayer(insertMarker); insertMarker = null; } resetForm(); }
