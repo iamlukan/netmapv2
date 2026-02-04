@@ -45,7 +45,7 @@ def export_nodes_excel(
             "OCS IP": None,
             "OCS Processador": None,
             "OCS Memória (MB)": None,
-            "OCS Disco (MB)": None,
+            "OCS Disco (GB)": None,
             "OCS OS": None,
             "OCS Usuário": None,
             "OCS Última Sincronização": None
@@ -55,10 +55,22 @@ def export_nodes_excel(
         if node.type == 'Computador' and ocs_db:
             ocs_info = get_machine_info(node.name, ocs_db)
             if ocs_info:
+                # User Request: Use OCS IP as main IP
+                if ocs_info.get("IPADDR"):
+                    row["IP (Netmap)"] = ocs_info.get("IPADDR")
+                
                 row["OCS IP"] = ocs_info.get("IPADDR")
-                row["OCS Processador"] = ocs_info.get("PROCESSOR") # Fix key name from PROCESSORT to PROCESSOR as per service alias
+                row["OCS Processador"] = ocs_info.get("PROCESSOR")
                 row["OCS Memória (MB)"] = ocs_info.get("MEMORY")
-                row["OCS Disco (MB)"] = ocs_info.get("DISKSIZE")
+                
+                # Disk Size in GB
+                disk_mb = ocs_info.get("DISKSIZE")
+                if disk_mb:
+                    try:
+                        row["OCS Disco (GB)"] = round(float(disk_mb) / 1024, 1)
+                    except:
+                        row["OCS Disco (GB)"] = disk_mb
+                
                 row["OCS OS"] = ocs_info.get("OSNAME")
                 row["OCS Usuário"] = ocs_info.get("USERID")
                 row["OCS Última Sincronização"] = ocs_info.get("LASTDATE")
@@ -82,7 +94,7 @@ def export_nodes_excel(
             "ocs_ip": "OCS IP",
             "ocs_cpu": "OCS Processador",
             "ocs_ram": "OCS Memória (MB)",
-            "ocs_disk": "OCS Disco (MB)",
+            "ocs_disk": "OCS Disco (GB)",
             "ocs_os": "OCS OS",
             "ocs_user": "OCS Usuário",
             "ocs_last": "OCS Última Sincronização"

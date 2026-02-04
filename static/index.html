@@ -123,6 +123,9 @@
             /* Support multiline */
             padding: 4px 8px !important;
             border-radius: 6px !important;
+            pointer-events: auto !important;
+            /* Enable selection */
+            cursor: text;
         }
 
         .leaflet-tooltip-left:before,
@@ -664,6 +667,7 @@
                             <p>IP: ${data.IPADDR || 'N/A'}</p>
                             <p>CPU: ${data.PROCESSOR || 'N/A'}</p>
                             <p>RAM: ${data.MEMORY ? data.MEMORY + ' MB' : 'N/A'}</p>
+                            <p>Disk: ${data.DISKSIZE ? (data.DISKSIZE / 1024).toFixed(1) + ' GB' : 'N/A'}</p>
                             <p>User: ${data.USERID || 'N/A'}</p>
                             <p>Last: ${data.LASTDATE || 'N/A'}</p>
                         </div>
@@ -758,6 +762,7 @@
                 // Tooltip
                 marker.bindTooltip(tooltipContent, {
                     permanent: true,
+                    interactive: true, // Allow text selection
                     direction: 'center', // Center for text
                     className: type === 'Texto' ? "leaflet-tooltip nm-tooltip-text" : `nm-tooltip ${colorClass}`,
                     offset: type === 'Texto' ? [0, 0] : [0, -4]
