@@ -113,11 +113,16 @@
         }
 
         .nm-tooltip-text {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
+            background: rgba(30, 30, 46, 0.7) !important;
+            /* Semi-transparent dark background */
+            border: 1px solid rgba(166, 173, 200, 0.3) !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
             font-size: 14px !important;
             color: #cdd6f4 !important;
+            white-space: pre-wrap !important;
+            /* Support multiline */
+            padding: 4px 8px !important;
+            border-radius: 6px !important;
         }
 
         .leaflet-tooltip-left:before,
@@ -170,7 +175,8 @@
                 class="text-sm bg-catppuccin-surface0 px-3 py-1 rounded hover:bg-catppuccin-surface1">Gerenciar
                 Andares</button>
             <button id="btn-insert" onclick="toggleInsertMode()"
-                class="text-sm bg-catppuccin-blue text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inserir</button>
+                class="text-sm bg-catppuccin-blue text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inserir
+                Item</button>
             <button id="btn-inventory" onclick="toggleRightSidebar()"
                 class="text-sm bg-catppuccin-peach text-catppuccin-crust font-bold px-3 py-1 rounded hover:opacity-90">Inventário
                 Pendente</button>
@@ -262,6 +268,8 @@
                     <label id="label-name" class="block text-xs text-catppuccin-overlay0 mb-1">Nome</label>
                     <input type="text" id="insert-name" placeholder="Nome do Item"
                         class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0">
+                    <textarea id="insert-text-content" placeholder="Digite o texto..." rows="3"
+                        class="hidden w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0"></textarea>
                 </div>
 
                 <div id="field-point">
@@ -369,6 +377,14 @@
                                 checked> IP (Netmap)</label>
                         <label class="flex items-center gap-2"><input type="checkbox" name="exp-field" value="type"
                                 checked> Tipo</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" name="exp-field" value="ocs_cpu"
+                                checked> OCS CPU</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" name="exp-field" value="ocs_ram"
+                                checked> OCS RAM</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" name="exp-field" value="ocs_disk"
+                                checked> OCS Disco</label>
+                        <label class="flex items-center gap-2"><input type="checkbox" name="exp-field" value="ocs_os"
+                                checked> OCS OS</label>
                         <label class="flex items-center gap-2"><input type="checkbox" name="exp-field" value="assigned"
                                 checked> Resp.</label>
                         <label class="flex items-center gap-2"><input type="checkbox" name="exp-field" value="details"
@@ -848,6 +864,16 @@
             resContainer.classList.remove('hidden');
         }
 
+        window.onkeydown = function (e) {
+            if (e.key === 'Escape') {
+                if (isInsertMode) toggleInsertMode();
+                document.getElementById('search-results').classList.add('hidden');
+                document.getElementById('insert-modal').classList.add('hidden');
+                document.getElementById('user-modal').classList.add('hidden');
+                document.getElementById('export-modal').classList.add('hidden');
+            }
+        }
+
         window.onclick = function (e) {
             const comp = document.getElementById('search-results');
             const input = document.getElementById('global-search');
@@ -937,7 +963,7 @@
             } catch (e) { alert("Erro conexão"); }
         });
 
-        function toggleInsertMode() { closeInsertModal(); isInsertMode = !isInsertMode; document.getElementById('btn-insert').classList.toggle('bg-catppuccin-red', isInsertMode); document.getElementById('map').classList.toggle('cursor-crosshair', isInsertMode); document.getElementById('btn-insert').innerText = isInsertMode ? "Cancelar Inserção" : "Inserir Manual"; }
+        function toggleInsertMode() { closeInsertModal(); isInsertMode = !isInsertMode; document.getElementById('btn-insert').classList.toggle('bg-catppuccin-red', isInsertMode); document.getElementById('map').classList.toggle('cursor-crosshair', isInsertMode); document.getElementById('btn-insert').innerText = isInsertMode ? "Cancelar Inserção" : "Inserir Item"; }
         function closeInsertModal() { document.getElementById('insert-modal').classList.add('hidden'); if (insertMarker) { map.removeLayer(insertMarker); insertMarker = null; } resetForm(); }
         function resetForm() { document.getElementById('insert-id').value = ''; document.getElementById('insert-form').reset(); document.getElementById('modal-title').innerText = "Inserir Item"; document.getElementById('btn-save-modal').innerText = "Salvar"; }
         function openEditModal(f) {
@@ -948,6 +974,7 @@
                 document.getElementById('insert-point').value = f.properties.point_number;
             } else {
                 document.getElementById('insert-name').value = f.properties.name;
+                document.getElementById('insert-text-content').value = f.properties.name; // Populate text area too
                 document.getElementById('insert-point').value = f.properties.point_number || '';
             }
             document.getElementById('insert-assigned').value = f.properties.assigned_to || '';
@@ -984,14 +1011,21 @@
                 ln.innerText = "Número do Ramal";
                 inputName.placeholder = "Ex.: 123"; // Ramal Placeholder
                 pd.classList.add('hidden');
+            } else if (t === 'Computador') {
+                rd.classList.add('hidden'); // Hide Responsible for Computer
             } else if (t === 'Equipamento') {
                 rd.classList.add('hidden'); // Hide Responsible
                 dd.classList.remove('hidden'); // Show Details
             } else if (t === 'Texto') {
                 ln.innerText = "Conteúdo";
-                inputName.placeholder = "Digite o texto...";
+                inputName.classList.add('hidden'); // Hide input
+                document.getElementById('insert-text-content').classList.remove('hidden'); // Show textarea
                 pd.classList.add('hidden');
                 rd.classList.add('hidden');
+            } else {
+                // Default reset for switching back from Texto
+                inputName.classList.remove('hidden');
+                document.getElementById('insert-text-content').classList.add('hidden');
             }
         }
         document.getElementById('insert-form').addEventListener('submit', async e => {
@@ -1000,6 +1034,7 @@
             const id = document.getElementById('insert-id').value;
             const t = document.getElementById('insert-type').value;
             let n = document.getElementById('insert-name').value;
+            if (t === 'Texto') n = document.getElementById('insert-text-content').value;
             const p = document.getElementById('insert-point').value;
             const a = document.getElementById('insert-assigned').value;
             const d = document.getElementById('insert-details').value;

@@ -45,6 +45,7 @@ def export_nodes_excel(
             "OCS IP": None,
             "OCS Processador": None,
             "OCS Memória (MB)": None,
+            "OCS Disco (MB)": None,
             "OCS OS": None,
             "OCS Usuário": None,
             "OCS Última Sincronização": None
@@ -81,6 +82,7 @@ def export_nodes_excel(
             "ocs_ip": "OCS IP",
             "ocs_cpu": "OCS Processador",
             "ocs_ram": "OCS Memória (MB)",
+            "ocs_disk": "OCS Disco (MB)",
             "ocs_os": "OCS OS",
             "ocs_user": "OCS Usuário",
             "ocs_last": "OCS Última Sincronização"
