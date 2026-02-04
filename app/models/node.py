@@ -41,7 +41,6 @@ class NetworkNode(Base):
                 "ip_address": self.ip_address,
                 "point_number": self.point_number,
                 "floor_id": self.floor_id,
-                "floor_id": self.floor_id,
                 "assigned_to": self.assigned_to,
                 "details": self.details
             }

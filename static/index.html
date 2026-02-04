@@ -417,10 +417,21 @@
 
     <script>
         const map = L.map('map', { crs: L.CRS.Simple, minZoom: -3, maxZoom: 2, zoomSnap: 0.5 });
-        const layerControl = L.control.layers(null, null, { collapsed: false, position: 'topright' }).addTo(map);
         let currentFloorId = null;
         let floorsData = [];
-        let markersLayer = L.layerGroup().addTo(map);
+        // Layer Groups
+        const layers = {
+            "Computadores": L.layerGroup().addTo(map),
+            "Ramais": L.layerGroup().addTo(map),
+            "Pontos": L.layerGroup().addTo(map),
+            "Equipamentos": L.layerGroup().addTo(map),
+            "Textos": L.layerGroup().addTo(map)
+        };
+
+        const layerControl = L.control.layers(null, layers, { collapsed: false, position: 'topright' }).addTo(map);
+
+        // Previous markersLayer usage replaced by these groups
+        // const markersLayer = L.featureGroup().addTo(map); // Removed
         let allNodes = [];
         let floorToReplace = null;
         let isInsertMode = false;
@@ -514,7 +525,8 @@
                 }
 
                 layerControl.remove();
-                const newControl = L.control.layers(null, null, { collapsed: false, position: 'topright' }).addTo(map);
+                // Re-add control with Overlays (layers) preserved
+                const newControl = L.control.layers(null, layers, { collapsed: false, position: 'topright' }).addTo(map);
                 const sidebarList = document.getElementById('floor-list');
                 sidebarList.innerHTML = '';
                 floorLayers = {};
@@ -695,34 +707,38 @@
 
         function updateMarkers() {
             if (!currentFloorId) return;
-            markersLayer.clearLayers();
-            const visibleNodes = allNodes.filter(n => n.properties.floor_id === currentFloorId);
+            // Clear all layers
+            Object.values(layers).forEach(l => l.clearLayers());
 
-            visibleNodes.forEach(f => {
+            const floorNodes = allNodes.filter(n => n.properties.floor_id === currentFloorId);
+            // const statusMap = getStatusMap(); // Assume this gets latest status // This line was not defined, using nodeStatusMap
+
+            floorNodes.forEach(f => {
+                const type = f.properties.type;
+                const id = f.id; // Correct ID access
                 const [y, x] = f.geometry.coordinates;
-                let colorClass = "nm-tooltip-green"; // Default
-                let colorHex = "#a6e3a1"; // Default Green
-                let tooltipContent = "";
-                let type = f.properties.type;
-                let id = f.id;
 
-                // Determine Color based on Status Map (Only for Computers)
-                // Updated Logic: Computers get Green/Gray/Red.
-                // Ramal gets Purple (Mauve).
-                // Determine Color based on Status Map (Only for Computers)
-                // Updated Logic: Computers get Green/Gray/Red.
+                let colorClass = "";
+                let colorHex = "#a6e3a1"; // Default
+                let tooltipContent = "";
+
+                // Determine Layer Group
+                let targetLayer = layers["Computadores"];
+                if (type === 'Ramal') targetLayer = layers["Ramais"];
+                else if (type === 'Ponto') targetLayer = layers["Pontos"];
+                else if (type === 'Equipamento') targetLayer = layers["Equipamentos"];
+                else if (type === 'Texto') targetLayer = layers["Textos"];
+
+                // Determine Color & Content (Logic preserved)
                 if (type === 'Computador') {
                     const status = nodeStatusMap[id];
                     if (status === 'red') {
-                        colorClass = "nm-tooltip-red";
-                        colorHex = "#f38ba8";
-                        if (!tooltipContent.includes("⚠️")) tooltipContent = "⚠️ " + tooltipContent;
+                        colorClass = "nm-tooltip-red"; colorHex = "#f38ba8";
+                        if (!tooltipContent.includes("⚠️")) tooltipContent = "⚠️ ";
                     } else if (status === 'gray') {
-                        colorClass = "nm-tooltip-gray";
-                        colorHex = "#6c7086";
+                        colorClass = "nm-tooltip-gray"; colorHex = "#6c7086";
                     } else {
-                        colorClass = "nm-tooltip-green";
-                        colorHex = "#a6e3a1";
+                        colorClass = "nm-tooltip-green"; colorHex = "#a6e3a1";
                     }
                 } else if (type === 'Ponto') {
                     colorClass = "nm-tooltip-yellow"; colorHex = "#f9e2af";
@@ -731,7 +747,7 @@
                 } else if (type === 'Equipamento') {
                     colorClass = "nm-tooltip-blue"; colorHex = "#89b4fa";
                 } else if (type === 'Texto') {
-                    colorClass = "nm-tooltip-text"; colorHex = "transparent"; // Invisible marker
+                    colorClass = "nm-tooltip-text"; colorHex = "transparent";
                 }
 
                 if (type === 'Ponto') {
@@ -744,8 +760,7 @@
                 } else if (type === 'Texto') {
                     tooltipContent = `<span class="text-sm font-bold text-catppuccin-text" style="text-shadow: 1px 1px 2px black;">${f.properties.name}</span>`;
                 } else {
-                    // Computer
-                    tooltipContent = `<span class="font-bold">${f.properties.name}</span>`;
+                    tooltipContent += `<span class="font-bold">${f.properties.name}</span>`;
                     if (f.properties.point_number) tooltipContent += `<br><span class="opacity-75">P: ${f.properties.point_number}</span>`;
                 }
 
@@ -755,20 +770,20 @@
                     color: type === 'Texto' ? "transparent" : "#11111b",
                     weight: 1,
                     fillOpacity: 0.9
-                }).addTo(markersLayer);
+                }).addTo(targetLayer); // Add to specific layer
 
-                marker.nodeId = id; // Store ID for search
+                marker.nodeId = id;
 
-                // Tooltip
                 marker.bindTooltip(tooltipContent, {
                     permanent: true,
-                    interactive: true, // Allow text selection
-                    direction: 'center', // Center for text
+                    interactive: true,
+                    direction: 'center',
                     className: type === 'Texto' ? "leaflet-tooltip nm-tooltip-text" : `nm-tooltip ${colorClass}`,
                     offset: type === 'Texto' ? [0, 0] : [0, -4]
                 });
 
-                // if (type === 'Texto') return; // Allow popup for edit/delete
+                // Context Menu for Edit (Right Click or Click)
+                // if (type === 'Texto') return; 
 
                 const popupDiv = document.createElement('div');
                 popupDiv.className = "flex flex-col gap-2 min-w-[150px]";
@@ -784,37 +799,43 @@
                 }
 
                 if (f.properties.details) {
-                    popupDiv.innerHTML += `<p class="text-xs text-catppuccin-text mt-1 bg-catppuccin-surface0 p-1 rounded italic">${f.properties.details}</p>`;
+                    // Equipment Details Highlight
+                    if (type === 'Equipamento') {
+                        popupDiv.innerHTML += `<div class="mt-2 p-2 bg-catppuccin-base rounded border border-catppuccin-blue">
+                            <p class="text-[10px] text-catppuccin-subtext0 uppercase font-bold">Detalhes</p>
+                            <p class="text-sm text-catppuccin-text">${f.properties.details}</p>
+                         </div>`;
+                    } else {
+                        popupDiv.innerHTML += `<p class="text-xs text-catppuccin-text mt-1 bg-catppuccin-surface0 p-1 rounded italic">${f.properties.details}</p>`;
+                    }
                 }
 
-                // Alert Message for Ghost Machines
+                // Alert Message
                 if (type === 'Computador' && nodeStatusMap[id] === 'red') {
-                    const alertDiv = document.createElement('div');
-                    alertDiv.className = "text-xs bg-red-900/50 text-red-200 p-1 rounded border border-red-500/50 mb-1 flex items-center gap-1";
-                    alertDiv.innerHTML = "<span>⚠️</span> <span>Máquina não inventariada no OCS</span>";
-                    popupDiv.appendChild(alertDiv);
+                    popupDiv.innerHTML += `<p class="text-xs text-catppuccin-red font-bold animate-pulse">⚠️ Não encontrado no OCS</p>`;
+                }
+
+                const btnEdit = document.createElement('button');
+                btnEdit.innerText = "✏️ Editar";
+                btnEdit.className = "text-xs bg-catppuccin-blue text-catppuccin-crust px-2 py-1 rounded hover:opacity-80 mt-1 w-full";
+                btnEdit.onclick = () => openEditModal(f);
+
+                // Only Admin
+                const role = localStorage.getItem('role') || 'viewer';
+                if (role === 'admin') {
+                    const delBtn = document.createElement('button');
+                    delBtn.className = "text-xs text-red-400 hover:text-red-300 w-full text-left mt-1 border-t border-catppuccin-surface0 pt-1";
+                    delBtn.innerText = "🗑️ Remover Item";
+                    delBtn.onclick = () => deleteNode(f.id);
+
+                    popupDiv.appendChild(btnEdit);
+                    popupDiv.appendChild(delBtn);
                 }
 
                 // OCS Section
                 const ocsDiv = document.createElement('div');
-                ocsDiv.id = `ocs-${f.id}`;
+                ocsDiv.id = `ocs-${id}`;
                 popupDiv.appendChild(ocsDiv);
-
-                const role = localStorage.getItem('role');
-                if (role === 'admin') {
-                    const editBtn = document.createElement('button');
-                    editBtn.className = "text-xs text-catppuccin-blue hover:text-white w-full text-left mt-1";
-                    editBtn.innerText = "✏️ Editar Item";
-                    editBtn.onclick = () => openEditModal(f);
-
-                    const delBtn = document.createElement('button');
-                    delBtn.className = "text-xs text-red-400 hover:text-red-300 w-full text-left";
-                    delBtn.innerText = "🗑️ Remover Item";
-                    delBtn.onclick = () => deleteNode(f.id);
-
-                    popupDiv.appendChild(editBtn);
-                    popupDiv.appendChild(delBtn);
-                }
 
                 marker.bindPopup(popupDiv);
 
@@ -909,19 +930,34 @@
                 updateMarkers();
             }
 
+            // AUTO-VISIBILITY LOGIC
+            const type = item.properties.type;
+            let targetGroup = null;
+            if (type === 'Computador') targetGroup = layers["Computadores"];
+            else if (type === 'Ramal') targetGroup = layers["Ramais"];
+            else if (type === 'Ponto') targetGroup = layers["Pontos"];
+            else if (type === 'Equipamento') targetGroup = layers["Equipamentos"];
+            else if (type === 'Texto') targetGroup = layers["Textos"];
+
+            if (targetGroup && !map.hasLayer(targetGroup)) {
+                map.addLayer(targetGroup);
+                console.log(`Auto-enabled layer for ${type}`);
+            }
+
             const [y, x] = item.geometry.coordinates;
             map.flyTo([x, y], 1, { duration: 1.5 });
 
             setTimeout(() => {
-                markersLayer.eachLayer(layer => {
-                    if (layer.nodeId === targetId) {
-                        layer.openPopup();
-                    }
-                });
+                // Find and open popup in the correct layer group
+                if (targetGroup) {
+                    targetGroup.eachLayer(layer => {
+                        if (layer.nodeId === targetId) {
+                            layer.openPopup();
+                        }
+                    });
+                }
             }, 1600);
         }
-
-        // User Management Logic
         function openUserModal() {
             document.getElementById('user-modal').classList.remove('hidden');
             fetchUsersList();
