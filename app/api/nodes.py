@@ -41,6 +41,7 @@ class NodeCreate(BaseModel):
     ip_address: str | None = None
     point_number: str | None = None
     assigned_to: str | None = None
+    details: str | None = None
     floor_id: int
     x: float
     y: float
@@ -59,6 +60,7 @@ def create_node(node: NodeCreate, db: Session = Depends(get_db), current_user = 
         ip_address=node.ip_address,
         point_number=node.point_number,
         assigned_to=node.assigned_to,
+        details=node.details,
         floor_id=node.floor_id,
         geom=wkt
     )
@@ -86,6 +88,7 @@ class NodeUpdate(BaseModel):
     type: str | None = None
     point_number: str | None = None
     assigned_to: str | None = None
+    details: str | None = None
     floor_id: int | None = None
     x: float | None = None
     y: float | None = None
@@ -104,6 +107,8 @@ def update_node(node_id: int, node_update: NodeUpdate, db: Session = Depends(get
         node.point_number = node_update.point_number
     if node_update.assigned_to is not None:
         node.assigned_to = node_update.assigned_to
+    if node_update.details is not None:
+        node.details = node_update.details
     if node_update.floor_id is not None:
         node.floor_id = node_update.floor_id
     

@@ -12,7 +12,8 @@ def get_machine_by_name(db: Session, name: str) -> Optional[dict]:
     # OCS table 'hardware' usually contains: ID, NAME, WORKGROUP, OSNAME, IPADDR, LASTDATE/LASTCOME
     # We join with 'bios' to get the Model (SMODEL)
     query = text("""
-        SELECT h.NAME, h.OSNAME, h.IPADDR, h.LASTDATE, h.USERID, h.MEMORY, h.PROCESSORT as PROCESSOR, b.SMODEL as MODEL
+        SELECT h.NAME, h.OSNAME, h.IPADDR, h.LASTDATE, h.USERID, h.MEMORY, h.PROCESSORT as PROCESSOR, b.SMODEL as MODEL,
+        (SELECT SUM(DISKSIZE) FROM storages WHERE HARDWARE_ID = h.ID) as DISKSIZE
         FROM hardware h
         LEFT JOIN bios b ON h.ID = b.HARDWARE_ID
         WHERE h.NAME = :name
