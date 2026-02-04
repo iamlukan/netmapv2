@@ -170,19 +170,28 @@ def get_node_status_map(local_db: Session, ocs_db: Session | None):
             pass
             
     # 3. Determine Status
-    now = datetime.now()
-    cutoff_active = now - timedelta(days=3)
-    
-    for node in local_nodes:
-        name_upper = node.name.upper()
+    try:
+        now = datetime.now()
+        cutoff_active = now - timedelta(days=3)
         
-        if name_upper in ocs_data:
-            last_seen = ocs_data[name_upper]
-            if last_seen and last_seen >= cutoff_active:
-                status_map[node.id] = "green" # Active
-            else:
-                status_map[node.id] = "gray" # Stale
-        else:
-            status_map[node.id] = "red" # Missing in OCS
+        for node in local_nodes:
+            name_upper = node.name.upper()
             
+            if name_upper in ocs_data:
+                last_seen = ocs_data[name_upper]
+                if last_seen and last_seen >= cutoff_active:
+                    status_map[node.id] = "green" # Active
+                else:
+                    status_map[node.id] = "gray" # Stale
+            else:
+                # If OCS was down (ocs_data empty), this naturally marks them as 'red' (missing).
+                # However, if OCS is totally broken, maybe we should return 'gray' or 'unknown'?
+                # For now, following logic: Not in returned list = Red.
+                status_map[node.id] = "red" # Missing in OCS
+                
+    except Exception as e:
+        print(f"ERROR: Calculation failed: {e}")
+        # Return empty map or safe defaults
+        return {}
+
     return status_map
