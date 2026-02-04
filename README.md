@@ -1,75 +1,162 @@
-# Netmap v2
+# Netmap v2 - Project Manifesto 🗺️
 
-Infrastructure and Network Mapping Application.
+Netmap is an advanced Indoor Mapping and Infrastructure Management system designed for high aesthetics and robust data handling. It integrates physically mapped assets with OCS Inventory data via secure tunnels.
 
-## Architecture
+## 🏗️ Architecture
 
-- **Backend**: FastAPI (Python)
-- **Database**: PostgreSQL + PostGIS (Dockerized)
-- **Frontend**: HTML5 + TailwindCSS + Leaflet
-- **Infrastructure**: Docker Compose + SSH Tunnel
+```mermaid
+graph TD
+    User[User / Browser] -->|HTTP 8000| App[FastAPI App]
+    App -->|SQLAlchemy| DB[PostgreSQL + PostGIS]
+    App -->|SSH Tunnel :3306| OCS[OCS Inventory DB (Remote)]
+    
+    subgraph Docker Network
+        App
+        DB
+        Tunnel[SSH Tunnel Container]
+    end
+    
+    Tunnel -->|SSH| Jumpbox[Gateway Server]
+    Jumpbox -->|MySQL| OCS
+```
 
-## OCS Integration & SSH Tunneling
+**Stack:**
+- **Backend:** Python 3.12 (uv), FastAPI, SQLAlchemy (Async).
+- **Frontend:** Vanilla JS, Leaflet.js, TailwindCSS (Catppuccin Mocha Theme).
+- **Database:** PostgreSQL 16 with PostGIS.
+- **Infrastructure:** Docker Compose (All services containerized).
 
-Netmap integrates with **OCS Inventory** to display real-time machine data. This connection often requires an SSH Tunnel to reach the database securely.
+---
 
-### Prerequisites
+## 🚀 Deployment Guide (Ubuntu Production)
 
-1.  **SSH Key**: You need an SSH Private Key (`id_ed25519` or `id_rsa`) authorized on the Gateway.
-2.  **Environment Variables**:
-    - `SSH_HOST`: IP of the Jumpbox/Gateway.
-    - `SSH_USER`: SSH Username (e.g., `user`).
-    - `SSH_KEY_PATH`: Local path to your private key.
-    - `OCS_DATABASE_URL`: Connection string for the OCS MySQL database.
-    - `SECRET_KEY`: **REQUIRED** in Production. Arbitrary secret string for JWT signing.
+Follow these steps to deploy Netmap v2 on a fresh Ubuntu server.
 
-### Setup Guide
+### 1. Prerequisites
+- **Ubuntu 20.04+** or **Debian 11+**
+- **Docker** & **Docker Compose** installed.
+- **SSH Private Key** (`id_ed25519` or `id_rsa`) authorizing access to the OCS Gateway.
 
-1.  **Place your Key**:
-    Copy your private key to a known location, e.g., `%USERPROFILE%\.ssh\id_ed25519`.
+### 2. Installation Steps
 
-2.  **Configure .env**:
-    ```ini
-    SSH_HOST=192.168.1.100
-    SSH_USER=user
-    SSH_KEY_PATH=C:/Users/YourUser/.ssh/id_ed25519
-    OCS_DATABASE_URL=mysql+pymysql://ocs_user:ocs_password@netmap-tunnel:3306/ocsweb
-    SECRET_KEY=super_secure_random_string_here
-    ```
-    *Note: The `netmap-tunnel` service exposes port 3306 internally.*
-
-3.  **Start Services**:
+1.  **Clone the Repository**:
     ```bash
+    git clone https://github.com/iamlukan/netmapv2.git
+    cd netmapv2
+    ```
+
+2.  **Setup SSH Credentials**:
+    Place your private key in a secure folder (e.g., `keys/`).
+    ```bash
+    mkdir keys
+    cp /path/to/your/id_ed25519 ./keys/
+    chmod 600 ./keys/id_ed25519
+    ```
+
+3.  **Environment Configuration**:
+    Create a `.env` file based on the example.
+    ```bash
+    cp .env.example .env
+    nano .env
+    ```
+    **Critical Variables to Edit:**
+    ```ini
+    # Database (Internal Netmap DB)
+    POSTGRES_USER=netmap
+    POSTGRES_PASSWORD=secure_password_here
+    POSTGRES_DB=netmap
+    DATABASE_URL=postgresql://netmap:secure_password_here@netmap-db:5432/netmap
+
+    # Security
+    SECRET_KEY=generate_a_random_secure_string_here
+
+    # OCS Inventory Tunnel (Remote Access)
+    SSH_HOST=10.0.0.1          # Gateway IP
+    SSH_USER=ubuntu            # Gateway User
+    SSH_KEY_PATH=/root/ssh/id_ed25519 # Path INSIDE container (Keep as is)
+    
+    # OCS Database Config (Remote MySQL credentials)
+    OCS_DB_HOST=netmap-tunnel  # Hostname alias from Docker Compose
+    OCS_DB_PORT=3306           # Local Tunnel Port
+    OCS_DB_USER=ocs_reader
+    OCS_DB_PASS=ocs_reader_pass
+    OCS_DB_NAME=ocsweb
+    ```
+
+4.  **Important**: Update `docker-compose.yml` volume for SSH Key.
+    Ensure the `netmap-tunnel` service mounts your local key to the container path expected by `.env`.
+    
+    *If your local key is in `./keys/id_ed25519`:*
+    ```yaml
+    # docker-compose.yml
+    netmap-tunnel:
+      volumes:
+        - ./keys/id_ed25519:/root/ssh/id_ed25519:ro
+    ```
+
+### 3. Build & Run
+
+Run the application in detached mode:
+```bash
+docker-compose up -d --build
+```
+
+### 4. Post-Install Initialization
+
+On the **first run**, you must create the default Admin user.
+
+```bash
+docker-compose exec netmap-app python scripts/seed_admin.py
+```
+> **Default Credentials:**
+> User: `admin`
+> Pass: `admin123`
+
+### 5. Access & Updates
+
+- **Access:** Open `http://YOUR_SERVER_IP:8000`
+- **Logs:** `docker-compose logs -f`
+- **Update:**
+    ```bash
+    git pull
     docker-compose up -d --build
     ```
 
-4.  **Seed Database (First Run)**:
-    Initialize the admin user:
-    ```bash
-    docker-compose exec app python scripts/seed_admin.py
-    ```
-    *Creates user: admin / admin123*
+---
 
-4.  **Verify Connection**:
-    - Check the tunnel logs: `docker logs netmap-tunnel`.
-    - Check the App status via API: `GET /api/test-db` or check the status badge in the UI header.
+## 🔧 Maintenance
 
-## Quick Start
+### Backup Database
+```bash
+docker exec -t netmap-db pg_dumpall -c -U netmap > dump_$(date +%Y-%m-%d).sql
+```
 
-1.  Clone the repository.
-2.  Ensure Docker and Docker Compose are installed.
-3.  **Configuration**: Create `.env` (see above).
-4.  Run: `docker-compose up --build`
-5.  Access: `http://localhost:8000`
+### Restore Database
+```bash
+cat dump_file.sql | docker exec -i netmap-db psql -U netmap
+```
 
-## Project Structure
+---
 
-- `/app`: Backend application code
-    - `/api`: API route endpoints
-    - `/models`: Database models
-    - `/services`: Business logic and external integrations
-- `/static`: Frontend assets
-- `/scripts`: Utility scripts
+## 📡 API Endpoints
 
-## Theme
-Uses Catppuccin Mocha palette.
+- `GET /api/nodes?floor_id=X`: List nodes for specific floor.
+- `GET /api/search?q=XYZ`: Global search (auto-layer switching).
+- `GET /api/export/excel`: Export filtered inventory data.
+- `GET /api/ocs/machine/{name}`: Get real-time OCS hardware info.
+
+---
+
+## 🎨 Design System
+
+**Colors (Catppuccin Mocha):**
+- Base: `#1e1e2e` (Backgrounds)
+- Text: `#cdd6f4` (Content)
+- Blue: `#89b4fa` (Actions/Equipments)
+- Green: `#a6e3a1` (Success/Computers)
+- Red: `#f38ba8` (Errors/Missing)
+- Mauve: `#cba6f7` (Ramals/Admin)
+
+**UI Components:**
+Wait for `L.control.layers` to toggle visibility of:
+Computadores | Ramais | Pontos | Equipamentos | Textos
