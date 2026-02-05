@@ -609,7 +609,14 @@
                     item.className = "flex justify-between items-center bg-catppuccin-surface0 p-2 rounded text-sm";
                     item.innerHTML = `<div><div class='font-bold'>${floor.name}</div><div class='text-xs text-catppuccin-overlay0'>Lvl ${floor.level_order}</div></div><div class="flex gap-2"><button onclick="triggerReplace(${floor.id})" class="hover:text-catppuccin-blue">♻️</button><button onclick="deleteFloor(${floor.id})" class="hover:text-catppuccin-red">🗑️</button></div>`;
                     sidebarList.appendChild(item);
-                    if (index === 0 && !currentFloorId) { layer.addTo(map); map.fitBounds(bounds); currentFloorId = floor.id; }
+                    if (index === 0 && !currentFloorId) {
+                        layer.addTo(map);
+                        // Pad bounds by 500px to allow panning past edges
+                        const paddedBounds = [[-500, -500], [floor.height + 500, floor.width + 500]];
+                        map.setMaxBounds(paddedBounds);
+                        map.fitBounds(bounds);
+                        currentFloorId = floor.id;
+                    }
                 });
             } catch (e) { console.error(e); }
         }
@@ -1020,7 +1027,8 @@
                     newLayer.addTo(map);
                     const f = floorsData.find(x => x.id === currentFloorId);
                     if (f) {
-                        map.setMaxBounds([[0, 0], [f.height, f.width]]);
+                        const paddedBounds = [[-500, -500], [f.height + 500, f.width + 500]];
+                        map.setMaxBounds(paddedBounds);
                         map.fitBounds([[0, 0], [f.height, f.width]]);
                     }
                 }
@@ -1203,7 +1211,15 @@
         function triggerReplace(id) { floorToReplace = id; document.getElementById('replace-file-input').click(); }
         document.getElementById('replace-file-input').addEventListener('change', async e => { const fd = new FormData(); fd.append('file', e.target.files[0]); await fetchWithAuth(`/api/floors/${floorToReplace}/image`, { method: 'POST', body: fd }); location.reload(); });
         document.getElementById('upload-form').addEventListener('submit', async e => { e.preventDefault(); const fd = new FormData(); fd.append('name', document.getElementById('new-floor-name').value); fd.append('level_order', document.getElementById('new-floor-level').value); fd.append('file', document.getElementById('new-floor-file').value ? document.getElementById('new-floor-file').files[0] : null); await fetchWithAuth('/api/floors/upload', { method: 'POST', body: fd }); location.reload(); });
-        map.on('baselayerchange', e => { const f = floorsData.find(fl => fl.name === e.name); if (f) { currentFloorId = f.id; map.setMaxBounds([[0, 0], [f.height, f.width]]); updateMarkers(); } });
+        map.on('baselayerchange', e => {
+            const f = floorsData.find(fl => fl.name === e.name);
+            if (f) {
+                currentFloorId = f.id;
+                const paddedBounds = [[-500, -500], [f.height + 500, f.width + 500]];
+                map.setMaxBounds(paddedBounds);
+                updateMarkers();
+            }
+        });
         async function checkConnection() { try { const r = await fetchWithAuth('/api/test-db'); const s = await r.json(); document.getElementById('status-local').innerText = `Local: ${s.local}`; document.getElementById('status-ocs').innerText = `ocs: ${s.ocs}`; } catch (e) { } }
         function submitExport() {
             const types = Array.from(document.querySelectorAll('input[name="exp-type"]:checked')).map(cb => cb.value);
