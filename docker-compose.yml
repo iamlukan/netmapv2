@@ -46,7 +46,7 @@ services:
     ports:
       - "5433:3306"
     volumes:
-      - ${SSH_KEY_PATH}:/root/ssh/id_ed25519:ro
+      - ./keys/id_ed25519:/root/ssh/id_ed25519:ro
     environment:
       - SSH_USER=${SSH_USER:-admband}
       - SSH_HOST=${SSH_HOST}
