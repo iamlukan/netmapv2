@@ -126,7 +126,7 @@ You should see: `Admin user created: admin / admin123` (on first run).
 
 ### 5. Access & Updates
 
-- **Access:** Open `http://YOUR_SERVER_IP:8000`
+- **Access:** Open `http://localhost:8002` (or `http://YOUR_SERVER_IP:8002`)
 - **Logs:** `docker-compose logs -f`
 - **Update:**
     ```bash
