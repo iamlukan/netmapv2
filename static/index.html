@@ -149,6 +149,76 @@
         .draggable-item:active {
             cursor: grabbing;
         }
+
+        /* Dynamic Popup Positioning */
+        .popup-below {
+            margin-bottom: 0 !important;
+        }
+
+        .leaflet-popup-content {
+            max-height: 280px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 5px;
+            /* Space for scrollbar */
+        }
+
+        /* Scrollbar Styling */
+        .leaflet-popup-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .leaflet-popup-content::-webkit-scrollbar-track {
+            background: #181825;
+        }
+
+        .leaflet-popup-content::-webkit-scrollbar-thumb {
+            background: #45475a;
+            border-radius: 4px;
+        }
+
+        .popup-below .leaflet-popup-content-wrapper {
+            transform: translateY(calc(100% + 15px));
+        }
+
+        .popup-below .leaflet-popup-tip-container {
+            top: 0;
+            bottom: auto;
+            transform: translateY(calc(100% + 14px)) rotate(180deg);
+        }
+
+        /* Horizontal Alignment for Corners */
+        .popup-align-right .leaflet-popup-content-wrapper {
+            margin-left: 80px;
+            /* Shift body right */
+        }
+
+        .popup-align-left .leaflet-popup-content-wrapper {
+            margin-right: 80px;
+            /* Shift body left */
+            margin-left: -80px;
+            /* Counter-act default centering if needed, but margin-right usually pushes. Leaflet centers with left: -50%. */
+            /* Actually, Leaflet wrapper is width: auto. 
+               The container is positioned. 
+               The wrapper is inside.
+               Simplest check is translateX.
+            */
+            transform: translateX(-40%);
+        }
+
+        .popup-align-right .leaflet-popup-content-wrapper {
+            margin-left: 0;
+            transform: translateX(40%);
+        }
+
+        /* Composite Transforms for Below + Horizontal */
+        .popup-below.popup-align-right .leaflet-popup-content-wrapper {
+            transform: translateY(calc(100% + 15px)) translateX(40%);
+        }
+
+        .popup-below.popup-align-left .leaflet-popup-content-wrapper {
+            transform: translateY(calc(100% + 15px)) translateX(-40%);
+        }
     </style>
 </head>
 
@@ -837,11 +907,38 @@
                 ocsDiv.id = `ocs-${id}`;
                 popupDiv.appendChild(ocsDiv);
 
-                marker.bindPopup(popupDiv);
+                // marker.bindPopup(popupDiv); // Removed static binding
 
-                // Fetch OCS when popup opens
-                marker.on('popupopen', () => {
-                    if (f.properties.type === 'Computador') fetchOCSData(f.properties.name, ocsDiv);
+                // Dynamic Popup Positioning Logic
+                marker.on('click', (e) => {
+                    // Calculate position relative to map container
+                    const containerPoint = map.latLngToContainerPoint(e.latlng);
+                    const mapSize = map.getSize();
+
+                    const isNearTop = containerPoint.y < 300;
+                    const isNearLeft = containerPoint.x < 150;
+                    const isNearRight = containerPoint.x > (mapSize.x - 150);
+
+                    let className = '';
+                    if (isNearTop) className += 'popup-below ';
+                    if (isNearLeft) className += 'popup-align-right '; // If near left, push right
+                    if (isNearRight) className += 'popup-align-left '; // If near right, push left
+
+                    const options = {
+                        className: className.trim(),
+                        offset: isNearTop ? [0, 5] : [0, 0]
+                    };
+
+                    const popup = L.popup(options)
+                        .setLatLng(e.latlng)
+                        .setContent(popupDiv);
+
+                    // Attach OCS fetcher
+                    if (f.properties.type === 'Computador') {
+                        fetchOCSData(f.properties.name, ocsDiv);
+                    }
+
+                    marker.bindPopup(popup).openPopup();
                 });
             });
         }
