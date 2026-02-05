@@ -46,9 +46,13 @@ Follow these steps to deploy Netmap v2 on a fresh Ubuntu server.
     ```
 
 2.  **Setup SSH Credentials**:
-    Place your private key in a secure folder (e.g., `keys/`).
+    For security, the `keys/` directory is git-ignored (except its README).
+    
+    1.  Create the directory if it doesn't exist (it should, with a README).
+    2.  Place your private key named `id_ed25519` inside.
+    
+    *Example:*
     ```bash
-    mkdir keys
     cp /path/to/your/id_ed25519 ./keys/
     chmod 600 ./keys/id_ed25519
     ```
@@ -73,7 +77,9 @@ Follow these steps to deploy Netmap v2 on a fresh Ubuntu server.
     # OCS Inventory Tunnel (Remote Access)
     SSH_HOST=10.0.0.1          # Gateway IP
     SSH_USER=ubuntu            # Gateway User
-    SSH_KEY_PATH=/root/ssh/id_ed25519 # Path INSIDE container (Keep as is)
+    SSH_HOST=10.0.0.1          # Gateway IP
+    SSH_USER=ubuntu            # Gateway User
+    # Note: SSH_KEY_PATH is deprecated. Key must be in ./keys/id_ed25519
     
     # OCS Database Config (Remote MySQL credentials)
     OCS_DB_HOST=netmap-tunnel  # Hostname alias from Docker Compose

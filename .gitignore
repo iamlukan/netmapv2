@@ -19,3 +19,7 @@ build/
 netmap_db_data/
 static/assets/floors/*
 !static/assets/floors/.gitkeep
+
+# Security
+keys/*
+!keys/README.md
