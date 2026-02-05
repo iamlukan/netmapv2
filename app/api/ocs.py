@@ -15,3 +15,11 @@ def get_machine_info(hostname: str, db: Session = Depends(get_ocs_db)):
         raise HTTPException(status_code=404, detail="Machine not found in OCS")
     
     return machine
+
+@router.get("/ocs/software/search")
+def search_software(q: str, db: Session = Depends(get_ocs_db)):
+    if db is None:
+        raise HTTPException(status_code=503, detail="OCS Database not available")
+    
+    # Return list of hostnames
+    return ocs.search_machines_by_software(db, q)

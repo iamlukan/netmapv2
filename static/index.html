@@ -156,26 +156,35 @@
         }
 
         .leaflet-popup-content {
-            max-height: 280px;
+            max-height: 50vh;
+            /* Limit height to half screen */
             overflow-y: auto;
+            /* Enable scroll */
             overflow-x: hidden;
             padding-right: 5px;
-            /* Space for scrollbar */
+            width: auto !important;
+            min-width: 250px;
         }
 
         /* Scrollbar Styling */
+        /* Scrollbar Styling */
         .leaflet-popup-content::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
+            /* Thinner */
         }
 
         .leaflet-popup-content::-webkit-scrollbar-track {
-            background: #181825;
+            background: transparent;
+            /* Invisible track */
         }
 
         .leaflet-popup-content::-webkit-scrollbar-thumb {
             background: #45475a;
             border-radius: 4px;
         }
+
+        /* Hide scrollbar when not hovering? Optional */
+        /* .leaflet-popup-content:not(:hover)::-webkit-scrollbar-thumb { background: transparent; } */
 
         .popup-below .leaflet-popup-content-wrapper {
             transform: translateY(calc(100% + 15px));
@@ -241,6 +250,13 @@
                     class="absolute top-9 left-0 w-full bg-catppuccin-mantle border border-catppuccin-surface0 rounded shadow-xl hidden max-h-80 overflow-y-auto z-50">
                 </div>
             </div>
+
+            <!-- Software Search (OCS) -->
+            <div class="relative ml-4">
+                <input type="text" id="software-search" onkeyup="debounceSoftwareSearch()" autocomplete="off"
+                    placeholder="💾 Software (OCS)..."
+                    class="bg-catppuccin-surface0 text-sm text-catppuccin-text px-3 py-1 rounded w-64 border border-catppuccin-surface1 focus:border-catppuccin-peach outline-none placeholder-catppuccin-overlay0 transition-all focus:w-80">
+            </div>
         </div>
 
         <div class="flex items-center gap-4">
@@ -275,7 +291,7 @@
     <div class="flex flex-grow relative">
         <!-- Sidebar Left (Floor Manager) -->
         <aside id="sidebar"
-            class="w-80 bg-catppuccin-mantle border-r border-catppuccin-surface0 hidden flex-col p-4 z-20 absolute h-full transition-transform left-0 top-0 pt-20">
+            class="w-96 bg-catppuccin-mantle border-r border-catppuccin-surface0 hidden flex-col p-4 z-20 absolute h-full transition-transform left-0 top-0 pt-20">
             <h2 class="text-lg font-bold mb-4">Gerenciar Andares</h2>
             <div id="floor-list" class="space-y-2 mb-4 overflow-y-auto flex-grow"></div>
             <div class="border-t border-catppuccin-surface0 pt-4">
@@ -294,7 +310,7 @@
 
         <!-- Sidebar Right (Pending Inventory) -->
         <aside id="sidebar-right"
-            class="w-80 bg-catppuccin-mantle border-l border-catppuccin-surface0 hidden flex-col p-4 z-20 absolute h-full transition-transform right-0 top-0 pt-4">
+            class="w-96 bg-catppuccin-mantle border-l border-catppuccin-surface0 hidden flex-col p-4 z-20 absolute h-full transition-transform right-0 top-0 pt-4">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-catppuccin-peach">Inventário Pendente <span id="inventory-count"
                         class="text-sm text-catppuccin-text opacity-75"></span></h2>
@@ -749,9 +765,30 @@
                 const res = await fetchWithAuth(`/api/ocs/machine/${hostname}`);
                 if (res.ok) {
                     const data = await res.json();
+
+                    // Domain Badge Logic
+                    const isDomain = data.WORKGROUP && data.WORKGROUP.toLowerCase() === 'bandeirantes.com.br';
+                    const domainBadge = isDomain
+                        ? `<span class="bg-catppuccin-green text-catppuccin-crust px-2 py-0.5 rounded text-[10px] font-bold block w-fit">DOMÍNIO OK</span>`
+                        : `<span class="bg-catppuccin-peach text-catppuccin-crust px-2 py-0.5 rounded text-[10px] font-bold block w-fit">WORKGROUP / OUTRO</span>`;
+
+                    // Software List
+                    let softListHtml = '';
+                    if (data.softwares && data.softwares.length > 0) {
+                        softListHtml = `<div class="mt-2 border-t border-catppuccin-surface1 pt-1">
+                            <p class="font-bold text-[10px] text-catppuccin-mavue mb-1">Top Softwares OCS</p>
+                            <ul class="list-disc pl-3 text-[9px] text-catppuccin-text">
+                                ${data.softwares.map(s => `<li>${s.NAME} <span class="opacity-50">(${s.VERSION})</span></li>`).join('')}
+                            </ul>
+                        </div>`;
+                    }
+
                     container.innerHTML = `
                         <div class="bg-catppuccin-surface0 p-2 rounded mt-2 text-xs">
-                            <p class="font-bold text-catppuccin-green">✓ Sincronizado</p>
+                            <div class="mb-2">
+                                <p class="font-bold text-catppuccin-green mb-1">✓ Sincronizado</p>
+                                ${domainBadge}
+                            </div>
                             <p>OS: ${data.OSNAME || 'N/A'}</p>
                             <p>IP: ${data.IPADDR || 'N/A'}</p>
                             <p>CPU: ${data.PROCESSOR || 'N/A'}</p>
@@ -759,6 +796,7 @@
                             <p>Disk: ${data.DISKSIZE ? (data.DISKSIZE / 1024).toFixed(1) + ' GB' : 'N/A'}</p>
                             <p>User: ${data.USERID || 'N/A'}</p>
                             <p>Last: ${data.LASTDATE || 'N/A'}</p>
+                            ${softListHtml}
                         </div>
                     `;
                 } else {
@@ -969,6 +1007,65 @@
                 const items = await res.json();
                 renderSearchResults(items);
             } catch (e) { console.error(e); }
+        }
+
+        // Software Search Logic
+        let softSearchTimeout = null;
+        function debounceSoftwareSearch() {
+            const q = document.getElementById('software-search').value;
+            if (softSearchTimeout) clearTimeout(softSearchTimeout);
+            softSearchTimeout = setTimeout(() => searchSoftware(q), 800);
+        }
+
+        async function searchSoftware(q) {
+            if (!q || q.length < 3) {
+                clearHighlights();
+                return;
+            }
+            try {
+                const res = await fetchWithAuth(`/api/ocs/software/search?q=${encodeURIComponent(q)}`);
+                if (res.ok) {
+                    const hostnames = await res.json();
+                    highlightMachines(hostnames);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        let highlightedMarkers = [];
+        function clearHighlights() {
+            highlightedMarkers.forEach(m => L.DomUtil.removeClass(m.getElement(), 'highlight-pulse'));
+            highlightedMarkers = [];
+        }
+
+        function highlightMachines(hostnames) {
+            clearHighlights();
+            let count = 0;
+            const targetNames = hostnames.map(h => h.toUpperCase()); // Normalize to uppercase
+
+            // Iterate all layer groups to find matches
+            Object.values(layers).forEach(layerGroup => {
+                layerGroup.eachLayer(layer => {
+                    if (layer.feature && layer.feature.properties.name) {
+                        const markerName = layer.feature.properties.name.toUpperCase();
+                        if (targetNames.includes(markerName)) {
+                            const el = layer.getElement();
+                            if (el) {
+                                L.DomUtil.addClass(el, 'highlight-pulse');
+                                highlightedMarkers.push(layer);
+                                count++;
+                            }
+                        }
+                    }
+                });
+            });
+
+            // User Feedback
+            if (count === 0) {
+                alert("Nenhuma máquina encontrada com este software no mapa atual (ou o software não está instalado).");
+            } else {
+                console.log(`Software encontrado em ${count} máquina(s).`);
+                // Optional: Toast or simple visual indication could go here
+            }
         }
 
         function renderSearchResults(items) {
