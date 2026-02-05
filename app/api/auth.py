@@ -26,7 +26,13 @@ def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2Passw
         expires_delta=access_token_expires
     )
     
-    return {"access_token": access_token, "token_type": "bearer", "role": user.role, "full_name": user.full_name}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "role": user.role, 
+        "full_name": user.full_name,
+        "force_password_change": user.force_password_change
+    }
 
 from app.schemas.user import UserCreate, UserResponse
 from app.core.deps import get_current_admin_user

@@ -41,4 +41,4 @@ EXPOSE 8000
 # Run commands
 ENV PYTHONPATH=/app
 RUN chmod +x scripts/entrypoint.sh
-CMD ["./scripts/entrypoint.sh"]
+CMD ["sh", "scripts/entrypoint.sh"]

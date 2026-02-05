@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 from app.database import Base
 
 class User(Base):
@@ -9,3 +9,4 @@ class User(Base):
     full_name = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="viewer") # "admin" or "viewer"
+    force_password_change = Column(Boolean, default=False)

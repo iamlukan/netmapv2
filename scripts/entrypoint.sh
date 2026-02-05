@@ -5,7 +5,10 @@ set -e
 echo "Starting scripts/wait_for_db.py..."
 python scripts/wait_for_db.py
 
-# 2. Seed Admin User
+# 2. Migrate & Seed
+echo "Running migrations..."
+python scripts/migrate_user_table.py
+
 echo "Starting scripts/seed_admin.py..."
 python scripts/seed_admin.py
 
