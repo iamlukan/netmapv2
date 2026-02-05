@@ -96,12 +96,21 @@ Follow these steps to deploy Netmap v2 on a fresh Ubuntu server.
 
 ### 3. Build & Run
  
-Run the application in detached mode:
+Choose the mode that fits your needs:
+
+#### A. Standard Mode (App + DB)
+Ideal for local testing or when OCS access is not required.
 ```bash
 docker compose up -d --build
 ```
+
+#### B. Full Mode (App + DB + Tunnel)
+Required for production or when you need real-time data from OCS Inventory.
+```bash
+docker compose --profile tunnel up -d --build
+```
     
-**That's it!** The system will automatically:
+**That's it!** In both modes, the system will automatically:
 - Wait for the database to be ready.
 - Create the tables.
 - Create the default Admin user (`admin` / `admin123` or `${ADMIN_PASSWORD}`).
@@ -122,7 +131,8 @@ You should see: `Admin user created: admin / admin123` (on first run).
 - **Update:**
     ```bash
     git pull
-    docker-compose up -d --build
+    # Use --profile tunnel if running in Full Mode
+    docker compose --profile tunnel up -d --build
     ```
 
 ---
