@@ -9,14 +9,13 @@ services:
       - ./static:/app/static
       - ./scripts:/app/scripts
     environment:
-      - DATABASE_URL=postgresql://netmap:netmap_password@netmap-db:5432/netmap
+      - DATABASE_URL=postgresql://netmap:${POSTGRES_PASSWORD}@netmap-db:5432/netmap
       - OCS_DB_HOST=${OCS_DB_HOST}
       - OCS_DB_USER=${OCS_DB_USER}
       - OCS_DB_PASS=${OCS_DB_PASS}
       - OCS_DB_NAME=${OCS_DB_NAME}
-      - OCS_DB_NAME=${OCS_DB_NAME}
       - OCS_DB_PORT=${OCS_DB_PORT}
-      - SECRET_KEY=dev_secret_key_fix_crash
+      - SECRET_KEY=${SECRET_KEY}
     depends_on:
       - netmap-db
     restart: unless-stopped
@@ -26,12 +25,12 @@ services:
     container_name: netmap-db
     environment:
       - POSTGRES_USER=netmap
-      - POSTGRES_PASSWORD=netmap_password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=netmap
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pg_data_netmap:/var/lib/postgresql/data
     restart: unless-stopped
 
   netmap-tunnel:
@@ -47,4 +46,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  pg_data_netmap:

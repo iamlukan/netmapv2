@@ -16,7 +16,8 @@ def create_admin_user():
         user = db.query(User).filter(User.username == "admin").first()
         if not user:
             print("Creating admin user...")
-            hashed_pw = get_password_hash("admin123")
+            password = os.getenv("ADMIN_PASSWORD", "admin123")
+            hashed_pw = get_password_hash(password)
             admin = User(
                 username="admin",
                 full_name="Administrator",
@@ -25,9 +26,12 @@ def create_admin_user():
             )
             db.add(admin)
             db.commit()
-            print("Admin user created: admin / admin123")
+            print(f"Admin user created: admin / {password}")
         else:
             print("Admin user already exists.")
+    except Exception as e:
+        print(f"Error seeding admin: {e}")
+        # Dont crash, just log errors
     finally:
         db.close()
 

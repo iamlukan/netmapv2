@@ -95,22 +95,25 @@ Follow these steps to deploy Netmap v2 on a fresh Ubuntu server.
     ```
 
 ### 3. Build & Run
-
+ 
 Run the application in detached mode:
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
+    
+**That's it!** The system will automatically:
+- Wait for the database to be ready.
+- Create the tables.
+- Create the default Admin user (`admin` / `admin123` or `${ADMIN_PASSWORD}`).
+- Start the application.
 
-### 4. Post-Install Initialization
+### 4. Verification
 
-On the **first run**, you must create the default Admin user.
-
+Check if everything is running:
 ```bash
-docker-compose exec netmap-app python scripts/seed_admin.py
+docker compose logs -f
 ```
-> **Default Credentials:**
-> User: `admin`
-> Pass: `admin123`
+You should see: `Admin user created: admin / admin123` (on first run).
 
 ### 5. Access & Updates
 

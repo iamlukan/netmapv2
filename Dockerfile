@@ -40,4 +40,5 @@ EXPOSE 8000
 
 # Run commands
 ENV PYTHONPATH=/app
-CMD ["sh", "-c", "python scripts/wait_for_db.py && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+RUN chmod +x scripts/entrypoint.sh
+CMD ["./scripts/entrypoint.sh"]
