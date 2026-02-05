@@ -16,6 +16,10 @@ services:
       - OCS_DB_NAME=${OCS_DB_NAME}
       - OCS_DB_PORT=${OCS_DB_PORT}
       - SECRET_KEY=${SECRET_KEY}
+    networks:
+      - netmap-network
+      - localocs
+      - npm-rede
     depends_on:
       - netmap-db
     restart: unless-stopped
@@ -31,11 +35,14 @@ services:
       - "5432:5432"
     volumes:
       - pg_data_netmap:/var/lib/postgresql/data
+    networks:
+      - netmap-network
     restart: unless-stopped
 
   netmap-tunnel:
     build: ./tunnel
     container_name: netmap-tunnel
+    profiles: [ "tunnel" ]
     ports:
       - "5433:3306"
     volumes:
@@ -43,7 +50,16 @@ services:
     environment:
       - SSH_USER=${SSH_USER:-admband}
       - SSH_HOST=${SSH_HOST}
+    networks:
+      - netmap-network
+      - localocs
     restart: unless-stopped
 
 volumes:
   pg_data_netmap:
+
+
+networks:
+  netmap-network:
+  localocs:
+  npm-rede:
