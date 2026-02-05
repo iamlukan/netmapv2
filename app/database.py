@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
@@ -12,10 +12,27 @@ Base = declarative_base()
 
 def get_db():
     db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    max_retries = 3
+    retry_count = 0
+    import time
+    from sqlalchemy.exc import OperationalError
+
+    while retry_count < max_retries:
+        try:
+            # Simple check to ensure connection is valid
+            db.execute(text("SELECT 1"))
+            yield db
+            break
+        except OperationalError:
+            retry_count += 1
+            print(f"Database connection failed. Retrying {retry_count}/{max_retries}...")
+            time.sleep(1)
+            if retry_count == max_retries:
+                print("CRITICAL: Database unreachable after retries.")
+                raise
+        finally:
+            if retry_count == 0 or retry_count == max_retries: # Close only if loop finished naturally
+                 db.close()
 
 # OCS Database Connection (Optional/Resilient)
 # OCS Database Connection (Resilient)

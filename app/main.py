@@ -1,9 +1,21 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
 
 app = FastAPI(title="Netmap v2")
+
+# CORS Configuration
+origins = ["*"]  # In production, specify domains (e.g., ["http://localhost", "https://mysite.com"])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Database Initialization (Centralized)
 from app.database import engine, Base
