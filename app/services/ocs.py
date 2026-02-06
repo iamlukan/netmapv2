@@ -52,26 +52,29 @@ def get_machine_by_name(db: Session, name: str) -> Optional[dict]:
         print(f"Error querying OCS: {e}")
         return None
 
-def search_machines_by_software(db: Session, software_name: str) -> list[str]:
+def search_machines_by_software(db: Session, software_name: str) -> list[dict]:
     """
-    Find all machine names that have a software matching the query.
+    Find all machines that have a software matching the query.
+    Returns: [{'hostname': 'PC-01', 'name': 'Chrome', 'version': '120.0'}]
     """
     if db is None:
         return []
 
     query = text("""
-        SELECT DISTINCT h.NAME 
+        SELECT DISTINCT h.NAME as hostname, n.NAME as software, v.VERSION as version
         FROM hardware h 
         JOIN software s ON h.ID = s.HARDWARE_ID 
         JOIN software_name n ON s.NAME_ID = n.ID
+        LEFT JOIN software_version v ON s.VERSION_ID = v.ID
         WHERE n.NAME LIKE :software
+        ORDER BY h.NAME ASC
     """)
     
     try:
         # We use wildcards for partial match
         search_term = f"%{software_name}%"
-        result = db.execute(query, {"software": search_term}).scalars().all()
-        return list(result)
+        results = db.execute(query, {"software": search_term}).mappings().all()
+        return [dict(row) for row in results]
     except Exception as e:
         print(f"Error searching software: {e}")
         return []

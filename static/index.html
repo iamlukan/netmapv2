@@ -228,6 +228,29 @@
         .popup-below.popup-align-left .leaflet-popup-content-wrapper {
             transform: translateY(calc(100% + 15px)) translateX(-40%);
         }
+
+        /* Marker Highlight Glow */
+        @keyframes pulse-glow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(250, 179, 135, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(250, 179, 135, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(250, 179, 135, 0);
+            }
+        }
+
+        .marker-highlight-glow {
+            animation: pulse-glow 1.5s infinite;
+            border: 2px solid #fab387 !important;
+            /* Peach border */
+            border-radius: 50%;
+            z-index: 1000 !important;
+        }
     </style>
 </head>
 
@@ -310,19 +333,25 @@
 
         <!-- Sidebar Right (Pending Inventory) -->
         <aside id="sidebar-right"
-            class="w-96 bg-catppuccin-mantle border-l border-catppuccin-surface0 hidden flex-col p-4 z-20 absolute h-full transition-transform right-0 top-0 pt-4">
+            class="w-96 bg-catppuccin-mantle border-l border-catppuccin-surface0 hidden flex flex-col p-4 z-20 fixed bottom-0 right-0 top-14 pt-4 shadow-xl">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-catppuccin-peach">Inventário Pendente <span id="inventory-count"
-                        class="text-sm text-catppuccin-text opacity-75"></span></h2>
-                <button onclick="fetchAudit()" class="text-xs text-catppuccin-blue hover:text-white">↻
-                    Atualizar</button>
+                <h2 id="sidebar-right-title" class="text-lg font-bold text-catppuccin-peach">Inventário Pendente <span
+                        id="inventory-count" class="text-sm text-catppuccin-text opacity-75"></span></h2>
+                <div class="flex gap-2">
+                    <button id="btn-clear-audit" onclick="clearAudit()"
+                        class="hidden text-xs text-catppuccin-red hover:text-white font-bold border border-catppuccin-red px-2 py-0.5 rounded">✖
+                        Limpar</button>
+                    <button id="btn-refresh-inv" onclick="fetchAudit()"
+                        class="text-xs text-catppuccin-blue hover:text-white">↻ Atualizar</button>
+                </div>
             </div>
 
             <input type="text" id="search-ocs" onkeyup="filterOCSList()" placeholder="🔍 Pesquisar Máquina..."
                 class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0 text-sm mb-2 text-catppuccin-text">
 
             <p class="text-xs text-catppuccin-overlay0 mb-4">Arraste para o mapa para posicionar.</p>
-            <div id="inventory-list" class="space-y-2 overflow-y-auto flex-grow pb-20">
+            <div id="inventory-list"
+                class="space-y-2 overflow-y-auto flex-grow min-h-0 pb-20 scrollbar-thin scrollbar-thumb-catppuccin-surface1 scrollbar-track-catppuccin-base">
                 <!-- Items will be injected here -->
                 <div class="text-center text-catppuccin-overlay0 text-sm mt-10">Carregando...</div>
             </div>
@@ -1010,7 +1039,7 @@
             } catch (e) { console.error(e); }
         }
 
-        // Software Search Logic
+        // Software Search Logic - Audit Panel
         let softSearchTimeout = null;
         function debounceSoftwareSearch() {
             const q = document.getElementById('software-search').value;
@@ -1020,65 +1049,129 @@
 
         async function searchSoftware(q) {
             if (!q || q.length < 3) {
-                clearHighlights();
+                if (q.length === 0) clearAudit();
                 return;
             }
             console.log(`[DEBUG] Searching for software: ${q}`);
             try {
                 const res = await fetchWithAuth(`/api/ocs/software/search?q=${encodeURIComponent(q)}`);
                 if (res.ok) {
-                    const hostnames = await res.json();
-                    console.log("[DEBUG] API returned hostnames:", hostnames);
-                    highlightMachines(hostnames);
+                    const results = await res.json();
+                    console.log("[DEBUG] API returned:", results);
+
+                    // switch sidebar mode
+                    enterAuditMode(results);
+                    highlightSoftwareMachines(results);
                 } else {
                     console.error("[DEBUG] API Error:", res.status);
                 }
             } catch (e) { console.error(e); }
         }
 
+        // Audit Mode Variables
+        let isAuditMode = false;
         let highlightedMarkers = [];
-        function clearHighlights() {
-            highlightedMarkers.forEach(m => L.DomUtil.removeClass(m.getElement(), 'highlight-pulse'));
-            highlightedMarkers = [];
+
+        function enterAuditMode(results) {
+            isAuditMode = true;
+            document.getElementById('sidebar-right').classList.remove('hidden');
+            document.getElementById('sidebar-right-title').innerHTML = `Auditoria (${results.length})`;
+            document.getElementById('sidebar-right-title').className = "text-lg font-bold text-catppuccin-yellow";
+
+            document.getElementById('inventory-list').innerHTML = '';
+            document.getElementById('btn-refresh-inv').classList.add('hidden');
+            document.getElementById('btn-clear-audit').classList.remove('hidden');
+            document.getElementById('search-ocs').classList.add('hidden');
+
+            const container = document.getElementById('inventory-list');
+
+            if (results.length === 0) {
+                container.innerHTML = `<div class="text-catppuccin-overlay0 text-sm p-4 text-center">Nenhum resultado encontrado.</div>`;
+                return;
+            }
+
+            results.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "bg-catppuccin-surface0 p-2 rounded text-sm flex items-center gap-2 hover:bg-catppuccin-surface1 transition-colors cursor-pointer border-l-4 border-catppuccin-yellow mb-2";
+                div.onclick = () => focusOnMachine(item.hostname);
+                div.innerHTML = `
+                    <div class="text-xl">🖥️</div>
+                    <div class="overflow-hidden">
+                        <div class="font-bold text-catppuccin-text truncate" title="${item.hostname}">${item.hostname}</div>
+                        <div class="text-[10px] text-catppuccin-overlay0 truncate" title="${item.software}">
+                            ${item.software}
+                        </div>
+                        <div class="text-[10px] text-catppuccin-yellow font-mono">
+                            v. ${item.version || '?'}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
         }
 
-        function highlightMachines(hostnames) {
-            clearHighlights();
-            let count = 0;
-            const targetNames = hostnames.map(h => h.trim().toUpperCase()); // Normalize
-            console.log("[DEBUG] Targets (Normalized):", targetNames);
+        function clearAudit() {
+            isAuditMode = false;
+            document.getElementById('sidebar-right-title').innerHTML = `Inventário Pendente <span id="inventory-count" class="text-sm text-catppuccin-text opacity-75"></span>`;
+            document.getElementById('sidebar-right-title').className = "text-lg font-bold text-catppuccin-peach";
+            document.getElementById('btn-refresh-inv').classList.remove('hidden');
+            document.getElementById('btn-clear-audit').classList.add('hidden');
+            document.getElementById('search-ocs').classList.remove('hidden');
+            document.getElementById('software-search').value = '';
 
-            // Iterate all layer groups to find matches
+            clearHighlights();
+            fetchAudit();
+        }
+
+        function focusOnMachine(hostname) {
+            const targetName = hostname.trim().toUpperCase();
+            let found = false;
+
             Object.values(layers).forEach(layerGroup => {
                 layerGroup.eachLayer(layer => {
                     if (layer.feature && layer.feature.properties.name) {
-                        const originalName = layer.feature.properties.name;
-                        const markerName = originalName.trim().toUpperCase();
+                        const markerName = layer.feature.properties.name.toUpperCase();
+                        if (markerName === targetName) {
+                            const latLng = layer.getLatLng();
+                            // Fly to location
+                            map.flyTo(latLng, map.getZoom(), { duration: 1.5 });
+                            // Trigger click to open popup
+                            layer.fire('click');
+                            found = true;
+                        }
+                    }
+                });
+            });
 
-                        // Debug first few checks to avoid spam
-                        if (count < 3) console.log(`[DEBUG] Checking marker: '${markerName}' against targets...`);
+            if (!found) {
+                alert("Esta máquina não está no mapa (pode estar no inventário pendente ou não cadastrada).");
+            }
+        }
+
+        function highlightSoftwareMachines(results) {
+            clearHighlights();
+            let count = 0;
+            const targetNames = results.map(r => r.hostname.trim().toUpperCase());
+
+            Object.values(layers).forEach(layerGroup => {
+                layerGroup.eachLayer(layer => {
+                    if (layer.feature && layer.feature.properties.name) {
+                        const markerName = layer.feature.properties.name.trim().toUpperCase();
 
                         if (targetNames.includes(markerName)) {
-                            console.log(`[DEBUG] MATCH FOUND! ${markerName}`);
                             const el = layer.getElement();
                             if (el) {
-                                L.DomUtil.addClass(el, 'highlight-pulse');
+                                L.DomUtil.addClass(el, 'marker-highlight-glow');
                                 highlightedMarkers.push(layer);
                                 count++;
-                            } else {
-                                console.warn(`[DEBUG] Marker ${markerName} found but getElement() is null (might be clustered or off-screen)`);
                             }
                         }
                     }
                 });
             });
 
-            // User Feedback
-            if (count === 0) {
-                alert(`Nenhuma máquina encontrada no mapa para os ${hostnames.length} resultados do OCS.\n(Verifique o console [F12] para detalhes)`);
-            } else {
-                console.log(`Software encontrado em ${count} máquina(s).`);
-                alert(`Encontrado em ${count} máquina(s)!`); // Temp alert to confirm match
+            if (count === 0 && results.length > 0) {
+                console.log("No matches on map for these results.");
             }
         }
 
