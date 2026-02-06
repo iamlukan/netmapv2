@@ -1434,31 +1434,63 @@
         document.getElementById('insert-form').addEventListener('submit', async e => {
             e.preventDefault();
             if (!currentFloorId) return alert("Selecione um andar!");
+
             const id = document.getElementById('insert-id').value;
             const t = document.getElementById('insert-type').value;
-            let n = document.getElementById('insert-name').value;
-            if (t === 'Texto') n = document.getElementById('insert-text-content').value;
-            const p = document.getElementById('insert-point').value;
-            const a = document.getElementById('insert-assigned').value;
-            const d = document.getElementById('insert-details').value;
+            let n = document.getElementById('insert-name').value.trim();
+            const p = document.getElementById('insert-point').value.trim();
+            const a = document.getElementById('insert-assigned').value.trim();
+            const d = document.getElementById('insert-details').value.trim();
             const x = parseFloat(document.getElementById('insert-x').value);
             const y = parseFloat(document.getElementById('insert-y').value);
-            if (t === 'Ponto') n = `Ponto ${p} `;
+
+            // Special handling for types
+            if (t === 'Texto') {
+                n = document.getElementById('insert-text-content').value.trim();
+                if (!n) return alert("O texto não pode estar vazio.");
+            } else if (t === 'Ponto') {
+                n = `Ponto ${p}`;
+            } else {
+                // For Computer, Equipment, Branch - Name is mandatory
+                if (!n) return alert("Por favor, preencha o campo Nome.");
+            }
+
             const pay = {
-                name: n || "Sem Nome",
+                name: n,
                 type: t,
                 point_number: p || null,
                 assigned_to: a || null,
                 details: d || null,
                 floor_id: currentFloorId
             };
-            let u = '/api/nodes', m = 'POST';
-            if (id) { u += `/ ${id} `; m = 'PUT'; } else { pay.x = x; pay.y = y; }
-            await fetchWithAuth(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pay) });
-            closeInsertModal();
-            if (isInsertMode) toggleInsertMode();
-            fetchNodes();
-            fetchAudit();
+
+            // Determine URL and Method
+            let url = '/api/nodes';
+            let method = 'POST';
+
+            if (id) {
+                url += `/${id}`;
+                method = 'PUT';
+            } else {
+                pay.x = x;
+                pay.y = y;
+            }
+
+            try {
+                await fetchWithAuth(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(pay)
+                });
+
+                closeInsertModal();
+                if (isInsertMode) toggleInsertMode();
+                fetchNodes();
+                fetchAudit();
+            } catch (e) {
+                console.error(e);
+                alert("Erro ao salvar item.");
+            }
         });
         async function deleteNode(id) {
             if (confirm("Remover?")) {
