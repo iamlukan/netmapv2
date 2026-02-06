@@ -118,6 +118,20 @@ async def update_floor_image(
     if not floor:
         raise HTTPException(status_code=404, detail="Floor not found")
 
+    # Delete OLD file if exists
+    if floor.image_path:
+        try:
+            # Construct absolute path from relative DB path
+            # DB: /static/assets/floors/image.jpg
+            # FS: static/assets/floors/image.jpg
+            old_relative = floor.image_path.lstrip("/")
+            old_path = os.path.abspath(old_relative)
+            if os.path.exists(old_path):
+                os.remove(old_path)
+                print(f"INFO: Deleted old floor image: {old_path}")
+        except Exception as e:
+            print(f"WARNING: Failed to delete old image {old_path}: {e}")
+
     # Save new file
     file_path = os.path.join(STATIC_FLOORS_DIR, file.filename)
     with open(file_path, "wb") as buffer:
