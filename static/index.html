@@ -888,6 +888,7 @@
                 }).addTo(targetLayer); // Add to specific layer
 
                 marker.nodeId = id;
+                marker.feature = f; // REQUIRED for search/highlight logic
 
                 marker.bindTooltip(tooltipContent, {
                     permanent: true,
@@ -1022,11 +1023,15 @@
                 clearHighlights();
                 return;
             }
+            console.log(`[DEBUG] Searching for software: ${q}`);
             try {
                 const res = await fetchWithAuth(`/api/ocs/software/search?q=${encodeURIComponent(q)}`);
                 if (res.ok) {
                     const hostnames = await res.json();
+                    console.log("[DEBUG] API returned hostnames:", hostnames);
                     highlightMachines(hostnames);
+                } else {
+                    console.error("[DEBUG] API Error:", res.status);
                 }
             } catch (e) { console.error(e); }
         }
@@ -1040,19 +1045,28 @@
         function highlightMachines(hostnames) {
             clearHighlights();
             let count = 0;
-            const targetNames = hostnames.map(h => h.toUpperCase()); // Normalize to uppercase
+            const targetNames = hostnames.map(h => h.trim().toUpperCase()); // Normalize
+            console.log("[DEBUG] Targets (Normalized):", targetNames);
 
             // Iterate all layer groups to find matches
             Object.values(layers).forEach(layerGroup => {
                 layerGroup.eachLayer(layer => {
                     if (layer.feature && layer.feature.properties.name) {
-                        const markerName = layer.feature.properties.name.toUpperCase();
+                        const originalName = layer.feature.properties.name;
+                        const markerName = originalName.trim().toUpperCase();
+
+                        // Debug first few checks to avoid spam
+                        if (count < 3) console.log(`[DEBUG] Checking marker: '${markerName}' against targets...`);
+
                         if (targetNames.includes(markerName)) {
+                            console.log(`[DEBUG] MATCH FOUND! ${markerName}`);
                             const el = layer.getElement();
                             if (el) {
                                 L.DomUtil.addClass(el, 'highlight-pulse');
                                 highlightedMarkers.push(layer);
                                 count++;
+                            } else {
+                                console.warn(`[DEBUG] Marker ${markerName} found but getElement() is null (might be clustered or off-screen)`);
                             }
                         }
                     }
@@ -1061,10 +1075,10 @@
 
             // User Feedback
             if (count === 0) {
-                alert("Nenhuma máquina encontrada com este software no mapa atual (ou o software não está instalado).");
+                alert(`Nenhuma máquina encontrada no mapa para os ${hostnames.length} resultados do OCS.\n(Verifique o console [F12] para detalhes)`);
             } else {
                 console.log(`Software encontrado em ${count} máquina(s).`);
-                // Optional: Toast or simple visual indication could go here
+                alert(`Encontrado em ${count} máquina(s)!`); // Temp alert to confirm match
             }
         }
 
