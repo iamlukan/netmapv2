@@ -349,6 +349,11 @@
             <input type="text" id="search-ocs" onkeyup="filterOCSList()" placeholder="🔍 Pesquisar Máquina..."
                 class="w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0 text-sm mb-2 text-catppuccin-text">
 
+            <select id="audit-version-filter" onchange="filterAuditResults()"
+                class="hidden w-full bg-catppuccin-crust p-2 rounded border border-catppuccin-surface0 text-sm mb-2 text-catppuccin-text cursor-pointer">
+                <!-- Options injected by JS -->
+            </select>
+
             <p class="text-xs text-catppuccin-overlay0 mb-4">Arraste para o mapa para posicionar.</p>
             <div id="inventory-list"
                 class="space-y-2 overflow-y-auto flex-grow min-h-0 pb-20 scrollbar-thin scrollbar-thumb-catppuccin-surface1 scrollbar-track-catppuccin-base">
@@ -1071,9 +1076,24 @@
         // Audit Mode Variables
         let isAuditMode = false;
         let highlightedMarkers = [];
+        let currentAuditResults = []; // Store original results
+
+        function clearHighlights() {
+            if (!highlightedMarkers) return;
+            highlightedMarkers.forEach(m => {
+                const el = m.getElement();
+                if (el) {
+                    L.DomUtil.removeClass(el, 'highlight-pulse');
+                    L.DomUtil.removeClass(el, 'marker-highlight-glow');
+                }
+            });
+            highlightedMarkers = [];
+        }
 
         function enterAuditMode(results) {
             isAuditMode = true;
+            currentAuditResults = results; // Save for filtering
+
             document.getElementById('sidebar-right').classList.remove('hidden');
             document.getElementById('sidebar-right-title').innerHTML = `Auditoria (${results.length})`;
             document.getElementById('sidebar-right-title').className = "text-lg font-bold text-catppuccin-yellow";
@@ -1081,16 +1101,48 @@
             document.getElementById('inventory-list').innerHTML = '';
             document.getElementById('btn-refresh-inv').classList.add('hidden');
             document.getElementById('btn-clear-audit').classList.remove('hidden');
+
+            // Hide inventory search, Show Version Filter
             document.getElementById('search-ocs').classList.add('hidden');
+            const filterSelect = document.getElementById('audit-version-filter');
+            filterSelect.classList.remove('hidden');
 
+            // Populate Filter
+            const versions = [...new Set(results.map(r => r.version || 'Desconhecido'))].sort();
+            filterSelect.innerHTML = `<option value="">Todas as Versões (${versions.length})</option>`;
+            versions.forEach(v => {
+                const count = results.filter(r => (r.version || 'Desconhecido') === v).length;
+                filterSelect.innerHTML += `<option value="${v}">${v} (${count})</option>`;
+            });
+
+            renderAuditList(results);
+        }
+
+        function filterAuditResults() {
+            const version = document.getElementById('audit-version-filter').value;
+            let filtered = currentAuditResults;
+
+            if (version) {
+                filtered = currentAuditResults.filter(r => (r.version || 'Desconhecido') === version);
+            }
+
+            // Update Title Count
+            document.getElementById('sidebar-right-title').innerHTML = `Auditoria (${filtered.length})`;
+
+            renderAuditList(filtered);
+            highlightSoftwareMachines(filtered);
+        }
+
+        function renderAuditList(list) {
             const container = document.getElementById('inventory-list');
+            container.innerHTML = '';
 
-            if (results.length === 0) {
-                container.innerHTML = `<div class="text-catppuccin-overlay0 text-sm p-4 text-center">Nenhum resultado encontrado.</div>`;
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-catppuccin-overlay0 text-sm p-4 text-center">Nenhum resultado filtrado.</div>`;
                 return;
             }
 
-            results.forEach(item => {
+            list.forEach(item => {
                 const div = document.createElement('div');
                 div.className = "bg-catppuccin-surface0 p-2 rounded text-sm flex items-center gap-2 hover:bg-catppuccin-surface1 transition-colors cursor-pointer border-l-4 border-catppuccin-yellow mb-2";
                 div.onclick = () => focusOnMachine(item.hostname);
@@ -1109,6 +1161,7 @@
                 container.appendChild(div);
             });
         }
+
 
         function clearAudit() {
             isAuditMode = false;
@@ -1135,8 +1188,8 @@
                             const latLng = layer.getLatLng();
                             // Fly to location
                             map.flyTo(latLng, map.getZoom(), { duration: 1.5 });
-                            // Trigger click to open popup
-                            layer.fire('click');
+                            // Trigger click to open popup - MUST PASS latlng
+                            layer.fire('click', { latlng: latLng });
                             found = true;
                         }
                     }
@@ -1186,12 +1239,12 @@
                     div.className = "p-2 border-b border-catppuccin-surface0 hover:bg-catppuccin-surface0 cursor-pointer text-xs flex justify-between group";
                     div.onclick = () => goToNode(item);
                     div.innerHTML = `
-                        <div>
+            < div >
                             <div class="font-bold text-catppuccin-text group-hover:text-catppuccin-blue">${item.properties.name}</div>
                             <div class="text-[10px] text-catppuccin-overlay0">${item.properties.assigned_to ? '👤 ' + item.properties.assigned_to : 'Sem dono'}</div>
-                        </div>
-                        <div class="text-catppuccin-overlay0 text-[10px] self-end">Lvl ${item.properties.floor_id}</div>
-                     `;
+                        </div >
+            <div class="text-catppuccin-overlay0 text-[10px] self-end">Lvl ${item.properties.floor_id}</div>
+        `;
                     resContainer.appendChild(div);
                 });
             }
@@ -1250,7 +1303,7 @@
 
             if (targetGroup && !map.hasLayer(targetGroup)) {
                 map.addLayer(targetGroup);
-                console.log(`Auto-enabled layer for ${type}`);
+                console.log(`Auto - enabled layer for ${type}`);
             }
 
             const [y, x] = item.geometry.coordinates;
@@ -1283,7 +1336,7 @@
                     users.forEach(u => {
                         const tr = document.createElement('tr');
                         tr.className = "border-b border-catppuccin-surface0 hover:bg-catppuccin-surface0";
-                        tr.innerHTML = `<td class="p-2 font-bold">${u.username}</td><td class="p-2">${u.full_name || '-'}</td><td class="p-2"><span class="${u.role === 'admin' ? 'text-catppuccin-red border border-catppuccin-red px-1 rounded text-[10px]' : 'text-catppuccin-blue border border-catppuccin-blue px-1 rounded text-[10px]'}">${u.role.toUpperCase()}</span></td>`;
+                        tr.innerHTML = `< td class= "p-2 font-bold" > ${u.username}</td ><td class="p-2">${u.full_name || '-'}</td><td class="p-2"><span class="${u.role === 'admin' ? 'text-catppuccin-red border border-catppuccin-red px-1 rounded text-[10px]' : 'text-catppuccin-blue border border-catppuccin-blue px-1 rounded text-[10px]'}">${u.role.toUpperCase()}</span></td>`;
                         tbody.appendChild(tr);
                     });
                 }
@@ -1390,7 +1443,7 @@
             const d = document.getElementById('insert-details').value;
             const x = parseFloat(document.getElementById('insert-x').value);
             const y = parseFloat(document.getElementById('insert-y').value);
-            if (t === 'Ponto') n = `Ponto ${p}`;
+            if (t === 'Ponto') n = `Ponto ${p} `;
             const pay = {
                 name: n || "Sem Nome",
                 type: t,
@@ -1400,20 +1453,20 @@
                 floor_id: currentFloorId
             };
             let u = '/api/nodes', m = 'POST';
-            if (id) { u += `/${id}`; m = 'PUT'; } else { pay.x = x; pay.y = y; }
+            if (id) { u += `/ ${id} `; m = 'PUT'; } else { pay.x = x; pay.y = y; }
             await fetchWithAuth(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pay) });
             closeInsertModal();
             if (isInsertMode) toggleInsertMode();
             fetchNodes();
             fetchAudit();
         });
-        async function deleteNode(id) { if (confirm("Remover?")) { await fetchWithAuth(`/api/nodes/${id}`, { method: 'DELETE' }); fetchNodes(); fetchAudit(); } }
+        async function deleteNode(id) { if (confirm("Remover?")) { await fetchWithAuth(`/ api / nodes / ${id} `, { method: 'DELETE' }); fetchNodes(); fetchAudit(); } }
         map.on('click', e => { if (!isInsertMode) return; resetForm(); if (insertMarker) map.removeLayer(insertMarker); insertMarker = L.circleMarker(e.latlng, { radius: 6, color: 'white' }).addTo(map); document.getElementById('insert-modal').classList.remove('hidden'); document.getElementById('insert-x').value = e.latlng.lng.toFixed(2); document.getElementById('insert-y').value = e.latlng.lat.toFixed(2); handleTypeChange(); });
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); document.getElementById('sidebar').classList.toggle('flex'); }
         function toggleRightSidebar() { document.getElementById('sidebar-right').classList.toggle('hidden'); document.getElementById('sidebar-right').classList.toggle('flex'); }
-        async function deleteFloor(id) { if (confirm("Confirmar?")) fetchWithAuth(`/api/floors/${id}`, { method: 'DELETE' }).then(() => location.reload()); }
+        async function deleteFloor(id) { if (confirm("Confirmar?")) fetchWithAuth(`/ api / floors / ${id} `, { method: 'DELETE' }).then(() => location.reload()); }
         function triggerReplace(id) { floorToReplace = id; document.getElementById('replace-file-input').click(); }
-        document.getElementById('replace-file-input').addEventListener('change', async e => { const fd = new FormData(); fd.append('file', e.target.files[0]); await fetchWithAuth(`/api/floors/${floorToReplace}/image`, { method: 'POST', body: fd }); location.reload(); });
+        document.getElementById('replace-file-input').addEventListener('change', async e => { const fd = new FormData(); fd.append('file', e.target.files[0]); await fetchWithAuth(`/ api / floors / ${floorToReplace}/image`, { method: 'POST', body: fd }); location.reload(); });
         document.getElementById('upload-form').addEventListener('submit', async e => { e.preventDefault(); const fd = new FormData(); fd.append('name', document.getElementById('new-floor-name').value); fd.append('level_order', document.getElementById('new-floor-level').value); fd.append('file', document.getElementById('new-floor-file').value ? document.getElementById('new-floor-file').files[0] : null); await fetchWithAuth('/api/floors/upload', { method: 'POST', body: fd }); location.reload(); });
         map.on('baselayerchange', e => {
             const f = floorsData.find(fl => fl.name === e.name);
