@@ -1,3 +1,4 @@
+
 from pydantic import BaseModel
 
 class UserBase(BaseModel):
@@ -13,3 +14,8 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+class UserUpdate(BaseModel):
+    full_name: str | None = None
+    role: str | None = None
+    password: str | None = None

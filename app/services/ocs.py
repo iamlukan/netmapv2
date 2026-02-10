@@ -61,7 +61,7 @@ def search_machines_by_software(db: Session, software_name: str) -> list[dict]:
         return []
 
     query = text("""
-        SELECT DISTINCT h.NAME as hostname, n.NAME as software, v.VERSION as version
+        SELECT DISTINCT h.NAME as hostname, h.WORKGROUP as workgroup, n.NAME as software, v.VERSION as version
         FROM hardware h 
         JOIN software s ON h.ID = s.HARDWARE_ID 
         JOIN software_name n ON s.NAME_ID = n.ID

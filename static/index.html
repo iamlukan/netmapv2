@@ -580,17 +580,23 @@
 
             // PERMISSIONS
             // PERMISSIONS
+            // Admin: All access
+            // Editor: Floors, Insert, Inventory (No Users)
+            // Viewer: Read Only
+            document.getElementById('btn-users').classList.add('hidden');
+            document.getElementById('btn-floors').classList.add('hidden');
+            document.getElementById('btn-insert').classList.add('hidden');
+            document.getElementById('btn-inventory').classList.add('hidden');
+
             if (role === 'admin') {
                 document.getElementById('btn-users').classList.remove('hidden');
                 document.getElementById('btn-floors').classList.remove('hidden');
                 document.getElementById('btn-insert').classList.remove('hidden');
                 document.getElementById('btn-inventory').classList.remove('hidden');
-            } else {
-                // Viewer -> Hide management buttons
-                document.getElementById('btn-users').classList.add('hidden');
-                document.getElementById('btn-floors').classList.add('hidden');
-                document.getElementById('btn-insert').classList.add('hidden');
-                document.getElementById('btn-inventory').classList.add('hidden');
+            } else if (role === 'editor') {
+                document.getElementById('btn-floors').classList.remove('hidden');
+                document.getElementById('btn-insert').classList.remove('hidden');
+                document.getElementById('btn-inventory').classList.remove('hidden');
             }
 
             await fetchFloors();
@@ -801,10 +807,12 @@
                     const data = await res.json();
 
                     // Domain Badge Logic
-                    const isDomain = data.WORKGROUP && data.WORKGROUP.toLowerCase() === 'bandeirantes.com.br';
+                    // Prioritize detecting "BANDEIRANTES" or "bandeirantes.com.br" in WORKGROUP
+                    const wg = (data.WORKGROUP || '').toUpperCase();
+                    const isDomain = wg.includes('BANDEIRANTES');
                     const domainBadge = isDomain
                         ? `<span class="bg-catppuccin-green text-catppuccin-crust px-2 py-0.5 rounded text-[10px] font-bold block w-fit">DOMÍNIO OK</span>`
-                        : `<span class="bg-catppuccin-peach text-catppuccin-crust px-2 py-0.5 rounded text-[10px] font-bold block w-fit">WORKGROUP / OUTRO</span>`;
+                        : `<span class="bg-catppuccin-peach text-catppuccin-crust px-2 py-0.5 rounded text-[10px] font-bold block w-fit">WORKGROUP: ${data.WORKGROUP || 'N/A'}</span>`;
 
                     // Software List
                     let softListHtml = '';
@@ -965,20 +973,18 @@
                     popupDiv.innerHTML += `<p class="text-xs text-catppuccin-red font-bold animate-pulse">⚠️ Não encontrado no OCS</p>`;
                 }
 
-                const btnEdit = document.createElement('button');
-                btnEdit.innerText = "✏️ Editar";
-                btnEdit.className = "text-xs bg-catppuccin-blue text-catppuccin-crust px-2 py-1 rounded hover:opacity-80 mt-1 w-full";
-                btnEdit.onclick = () => openEditModal(f);
-
-                // Only Admin
                 const role = localStorage.getItem('role') || 'viewer';
-                if (role === 'admin') {
+                if (role === 'admin' || role === 'editor') {
+                    const btnEdit = document.createElement('button');
+                    btnEdit.innerText = "✏️ Editar";
+                    btnEdit.className = "text-xs bg-catppuccin-blue text-catppuccin-crust px-2 py-1 rounded hover:opacity-80 mt-1 w-full";
+                    btnEdit.onclick = () => openEditModal(f);
+                    popupDiv.appendChild(btnEdit);
+
                     const delBtn = document.createElement('button');
                     delBtn.className = "text-xs text-red-400 hover:text-red-300 w-full text-left mt-1 border-t border-catppuccin-surface0 pt-1";
                     delBtn.innerText = "🗑️ Remover Item";
                     delBtn.onclick = () => deleteNode(f.id);
-
-                    popupDiv.appendChild(btnEdit);
                     popupDiv.appendChild(delBtn);
                 }
 
@@ -1144,18 +1150,15 @@
 
             list.forEach(item => {
                 const div = document.createElement('div');
-                div.className = "bg-catppuccin-surface0 p-2 rounded text-sm flex items-center gap-2 hover:bg-catppuccin-surface1 transition-colors cursor-pointer border-l-4 border-catppuccin-yellow mb-2";
+                div.className = "bg-catppuccin-surface0 p-2 rounded text-sm flex items-center justify-between hover:bg-catppuccin-surface1 transition-colors cursor-pointer border-l-4 border-catppuccin-yellow mb-2";
                 div.onclick = () => focusOnMachine(item.hostname);
                 div.innerHTML = `
-                    <div class="text-xl">🖥️</div>
-                    <div class="overflow-hidden">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="text-lg">🖥️</span>
                         <div class="font-bold text-catppuccin-text truncate" title="${item.hostname}">${item.hostname}</div>
-                        <div class="text-[10px] text-catppuccin-overlay0 truncate" title="${item.software}">
-                            ${item.software}
-                        </div>
-                        <div class="text-[10px] text-catppuccin-yellow font-mono">
-                            v. ${item.version || '?'}
-                        </div>
+                    </div>
+                    <div class="text-xs text-catppuccin-yellow font-mono whitespace-nowrap pl-2">
+                        v. ${item.version || '?'}
                     </div>
                 `;
                 container.appendChild(div);
@@ -1176,27 +1179,35 @@
             fetchAudit();
         }
 
-        function focusOnMachine(hostname) {
+        async function focusOnMachine(hostname) {
             const targetName = hostname.trim().toUpperCase();
-            let found = false;
 
-            Object.values(layers).forEach(layerGroup => {
-                layerGroup.eachLayer(layer => {
-                    if (layer.feature && layer.feature.properties.name) {
-                        const markerName = layer.feature.properties.name.toUpperCase();
-                        if (markerName === targetName) {
-                            const latLng = layer.getLatLng();
-                            // Fly to location
-                            map.flyTo(latLng, map.getZoom(), { duration: 1.5 });
-                            // Trigger click to open popup - MUST PASS latlng
-                            layer.fire('click', { latlng: latLng });
-                            found = true;
-                        }
-                    }
-                });
-            });
+            // Find node in allNodes to ensure we can switch floors if needed
+            const node = allNodes.find(n => n.properties.name.toUpperCase() === targetName);
 
-            if (!found) {
+            if (node) {
+                await goToNode(node);
+
+                // Add Glow Effect after moving
+                setTimeout(() => {
+                    Object.values(layers).forEach(layerGroup => {
+                        layerGroup.eachLayer(layer => {
+                            if (layer.nodeId === node.id) {
+                                const el = layer.getElement();
+                                if (el) {
+                                    L.DomUtil.addClass(el, 'marker-highlight-glow');
+                                    highlightedMarkers.push(layer);
+
+                                    // Remove glow after 5 seconds automatically
+                                    setTimeout(() => {
+                                        L.DomUtil.removeClass(el, 'marker-highlight-glow');
+                                    }, 5000);
+                                }
+                            }
+                        });
+                    });
+                }, 1800); // Wait for flyTo + popup delay
+            } else {
                 alert("Esta máquina não está no mapa (pode estar no inventário pendente ou não cadastrada).");
             }
         }

@@ -46,10 +46,10 @@ class NodeCreate(BaseModel):
     x: float
     y: float
 
-from app.core.deps import get_current_admin_user
+from app.core.deps import get_current_editor_user
 
 @router.post("/nodes")
-def create_node(node: NodeCreate, db: Session = Depends(get_db), current_user = Depends(get_current_admin_user)):
+def create_node(node: NodeCreate, db: Session = Depends(get_db), current_user = Depends(get_current_editor_user)):
     # Convert [x, y] to WKT Point
     # PostGIS standard is LON(X), LAT(Y)
     wkt = f"POINT({node.x} {node.y})"
@@ -74,7 +74,7 @@ def create_node(node: NodeCreate, db: Session = Depends(get_db), current_user = 
 from fastapi import HTTPException
 
 @router.delete("/nodes/{node_id}")
-def delete_node(node_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_admin_user)):
+def delete_node(node_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_editor_user)):
     node = db.query(NetworkNode).filter(NetworkNode.id == node_id).first()
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
@@ -94,7 +94,7 @@ class NodeUpdate(BaseModel):
     y: float | None = None
 
 @router.put("/nodes/{node_id}")
-def update_node(node_id: int, node_update: NodeUpdate, db: Session = Depends(get_db), current_user = Depends(get_current_admin_user)):
+def update_node(node_id: int, node_update: NodeUpdate, db: Session = Depends(get_db), current_user = Depends(get_current_editor_user)):
     node = db.query(NetworkNode).filter(NetworkNode.id == node_id).first()
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")

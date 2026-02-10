@@ -11,7 +11,10 @@ python scripts/init_db.py
 
 # 3. Migrate & Seed
 echo "Running migrations..."
-python scripts/migrate_user_table.py
+# Check if migration script exists before running
+if [ -f "scripts/migrate_user_table.py" ]; then
+    python scripts/migrate_user_table.py
+fi
 
 echo "Starting scripts/seed_admin.py..."
 python scripts/seed_admin.py

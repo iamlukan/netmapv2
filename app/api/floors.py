@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db, Base, engine
 from app.models.floor import Floor
 from app.models.node import NetworkNode
-from app.core.deps import get_current_admin_user
+from app.core.deps import get_current_editor_user
 import shutil
 import os
 from PIL import Image
@@ -27,7 +27,7 @@ async def upload_floor(
     level_order: int = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_admin_user)
+    current_user = Depends(get_current_editor_user)
 ):
     # Save file
     file_path = os.path.join(STATIC_FLOORS_DIR, file.filename)
@@ -52,7 +52,7 @@ async def upload_floor(
     return new_floor
 
 @router.patch("/floors/{floor_id}")
-def update_floor(floor_id: int, name: str = None, level_order: int = None, db: Session = Depends(get_db), current_user = Depends(get_current_admin_user)):
+def update_floor(floor_id: int, name: str = None, level_order: int = None, db: Session = Depends(get_db), current_user = Depends(get_current_editor_user)):
     floor = db.query(Floor).filter(Floor.id == floor_id).first()
     if not floor:
         raise HTTPException(status_code=404, detail="Floor not found")
@@ -66,7 +66,7 @@ def update_floor(floor_id: int, name: str = None, level_order: int = None, db: S
     return floor
 
 @router.delete("/floors/{floor_id}")
-def delete_floor(floor_id: int, db: Session = Depends(get_db)):
+def delete_floor(floor_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_editor_user)):
     floor = db.query(Floor).filter(Floor.id == floor_id).first()
     if not floor:
         raise HTTPException(status_code=404, detail="Floor not found")
