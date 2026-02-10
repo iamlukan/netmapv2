@@ -40,5 +40,6 @@ EXPOSE 8000
 
 # Run commands
 ENV PYTHONPATH=/app
+# chmod +x is good practice but might be overridden by volume mounts on Windows
 RUN chmod +x scripts/entrypoint.sh
-CMD ["/app/scripts/entrypoint.sh"]
+CMD ["/bin/sh", "/app/scripts/entrypoint.sh"]
